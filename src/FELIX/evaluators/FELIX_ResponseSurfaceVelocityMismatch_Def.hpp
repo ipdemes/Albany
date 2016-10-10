@@ -222,7 +222,7 @@ void FELIX::ResponseSurfaceVelocityMismatch<EvalT, Traits>::postEvaluate(typenam
 #endif
 
   if(workset.comm->getRank()   ==0)
-    std::cout << "SV, resp: " << Sacado::ScalarValue<ScalarT>::eval(resp) << ", reg: " << Sacado::ScalarValue<ScalarT>::eval(reg) <<std::endl;
+    std::cout << "SV, resp: " << resp << ", reg: " << reg <<std::endl;
 
   if (rank(*workset.comm) == 0) {
     std::ofstream ofile;

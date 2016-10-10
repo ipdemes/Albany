@@ -47,9 +47,9 @@ createResponseFunction(
   using Teuchos::rcp;
   using Teuchos::ParameterList;
   using Teuchos::Array;
-  
+
   RCP<const Teuchos_Comm> comm = app->getComm();
-  
+
   if (name == "Solution Average") {
     responses.push_back(rcp(new Albany::SolutionAverageResponseFunction(comm)));
   }
@@ -125,12 +125,24 @@ createResponseFunction(
   else if (name == "Field Integral" ||
      name == "Field Value" ||
      name == "Field Average" ||
-     name == "Squared L2 Error Target ST" ||
-     name == "Squared L2 Error Target MST" ||
-     name == "Squared L2 Error Target PST" ||
-     name == "Squared L2 Error Side Target ST" ||
-     name == "Squared L2 Error Side Target MST" ||
-     name == "Squared L2 Error Side Target PST" ||
+     name == "Squared L2 Error Source ST Target ST" ||
+     name == "Squared L2 Error Source ST Target MST" ||
+     name == "Squared L2 Error Source ST Target PST" ||
+     name == "Squared L2 Error Source PST Target ST" ||
+     name == "Squared L2 Error Source PST Target MST" ||
+     name == "Squared L2 Error Source PST Target PST" ||
+     name == "Squared L2 Error Source MST Target ST" ||
+     name == "Squared L2 Error Source MST Target MST" ||
+     name == "Squared L2 Error Source MST Target PST" ||
+     name == "Squared L2 Error Side Source ST Target ST" ||
+     name == "Squared L2 Error Side Source ST Target MST" ||
+     name == "Squared L2 Error Side Source ST Target PST" ||
+     name == "Squared L2 Error Side Source PST Target ST" ||
+     name == "Squared L2 Error Side Source PST Target MST" ||
+     name == "Squared L2 Error Side Source PST Target PST" ||
+     name == "Squared L2 Error Side Source MST Target ST" ||
+     name == "Squared L2 Error Side Source MST Target MST" ||
+     name == "Squared L2 Error Side Source MST Target PST" ||
      name == "Surface Velocity Mismatch" ||
      name == "Surface Mass Balance Mismatch" ||
            name == "Aeras Shallow Water L2 Error" ||
@@ -151,7 +163,7 @@ createResponseFunction(
            name == "PHAL Field Integral" ||
            name == "PHAL Field IntegralT" ||
            name == "PHAL Thermal EnergyT" ||
-	   name == "AMP Energy") {
+     name == "AMP Energy") {
     responseParams.set("Name", name);
     for (int i=0; i<meshSpecs.size(); i++) {
 #if defined(ALBANY_LCM)

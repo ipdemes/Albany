@@ -13,11 +13,10 @@ namespace PHAL {
 /**
  * \brief Response Description
  */
-template<typename EvalT, typename Traits, typename TargetScalarT>
+template<typename EvalT, typename Traits, typename SourceScalarT, typename TargetScalarT>
 class ResponseSquaredL2ErrorSideBase : public PHAL::SeparableScatterScalarResponse<EvalT,Traits>
 {
 public:
-  typedef typename EvalT::ScalarT     ScalarT;
 
   ResponseSquaredL2ErrorSideBase (Teuchos::ParameterList& p,
                                   const Teuchos::RCP<Albany::Layouts>& dl);
@@ -33,6 +32,8 @@ public:
 
 private:
 
+  typedef typename EvalT::ScalarT ScalarT;
+
   int getLayout (const Teuchos::RCP<Albany::Layouts>& dl, const std::string& rank, Teuchos::RCP<PHX::DataLayout>& layout);
 
   std::string sideSetName;
@@ -44,21 +45,41 @@ private:
   bool target_zero;
   RealType scaling;
 
-  PHX::MDField<ScalarT>                           computedField;
+  PHX::MDField<SourceScalarT>                     sourceField;
   PHX::MDField<TargetScalarT>                     targetField;
 
   PHX::MDField<RealType,Cell,Side,QuadPoint>      w_measure;
 };
 
-// Some shortcut names
+//-- SourceScalarT = ScalarT
 template<typename EvalT, typename Traits>
-using ResponseSquaredL2ErrorSideTargetST = ResponseSquaredL2ErrorSideBase<EvalT,Traits,typename EvalT::ScalarT>;
+using ResponseSquaredL2ErrorSideSST_TST  = ResponseSquaredL2ErrorSideBase<EvalT,Traits,typename EvalT::ScalarT,typename EvalT::ScalarT>;
 
 template<typename EvalT, typename Traits>
-using ResponseSquaredL2ErrorSideTargetMST = ResponseSquaredL2ErrorSideBase<EvalT,Traits,typename EvalT::MeshScalarT>;
+using ResponseSquaredL2ErrorSideSST_TMST = ResponseSquaredL2ErrorSideBase<EvalT,Traits,typename EvalT::ScalarT,typename EvalT::MeshScalarT>;
 
 template<typename EvalT, typename Traits>
-using ResponseSquaredL2ErrorSideTargetPST = ResponseSquaredL2ErrorSideBase<EvalT,Traits,typename EvalT::ParamScalarT>;
+using ResponseSquaredL2ErrorSideSST_TPST = ResponseSquaredL2ErrorSideBase<EvalT,Traits,typename EvalT::ScalarT,typename EvalT::ParamScalarT>;
+
+//-- SourceScalarT = ParamScalarT
+template<typename EvalT, typename Traits>
+using ResponseSquaredL2ErrorSideSPST_TST  = ResponseSquaredL2ErrorSideBase<EvalT,Traits,typename EvalT::ParamScalarT,typename EvalT::ScalarT>;
+
+template<typename EvalT, typename Traits>
+using ResponseSquaredL2ErrorSideSPST_TMST = ResponseSquaredL2ErrorSideBase<EvalT,Traits,typename EvalT::ParamScalarT,typename EvalT::MeshScalarT>;
+
+template<typename EvalT, typename Traits>
+using ResponseSquaredL2ErrorSideSPST_TPST = ResponseSquaredL2ErrorSideBase<EvalT,Traits,typename EvalT::ParamScalarT,typename EvalT::ParamScalarT>;
+
+//-- SourceScalarT = MeshScalarT
+template<typename EvalT, typename Traits>
+using ResponseSquaredL2ErrorSideSMST_TST  = ResponseSquaredL2ErrorSideBase<EvalT,Traits,typename EvalT::MeshScalarT,typename EvalT::ScalarT>;
+
+template<typename EvalT, typename Traits>
+using ResponseSquaredL2ErrorSideSMST_TMST = ResponseSquaredL2ErrorSideBase<EvalT,Traits,typename EvalT::MeshScalarT,typename EvalT::MeshScalarT>;
+
+template<typename EvalT, typename Traits>
+using ResponseSquaredL2ErrorSideSMST_TPST = ResponseSquaredL2ErrorSideBase<EvalT,Traits,typename EvalT::MeshScalarT,typename EvalT::ParamScalarT>;
 
 } // Namespace PHAL
 

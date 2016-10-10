@@ -92,14 +92,24 @@ BasalFrictionCoefficient (const Teuchos::ParameterList& p,
     N              = PHX::MDField<HydroScalarT>(p.get<std::string> ("Effective Pressure QP Variable Name"), dl->qp_scalar);
     u_norm         = PHX::MDField<IceScalarT>(p.get<std::string> ("Sliding Velocity QP Variable Name"), dl->qp_scalar);
     muParam        = PHX::MDField<ScalarT,Dim>("Coulomb Friction Coefficient", dl->shared_param);
-    lambdaParam    = PHX::MDField<ScalarT,Dim>("Bed Roughness", dl->shared_param);
     powerParam     = PHX::MDField<ScalarT,Dim>("Power Exponent", dl->shared_param);
 
     this->addDependentField (muParam);
-    this->addDependentField (lambdaParam);
     this->addDependentField (powerParam);
     this->addDependentField (u_norm);
     this->addDependentField (N);
+
+    distributedLambda = beta_list.get<bool>("Distributed Bed Roughness",false);
+    if (distributedLambda)
+    {
+      lambdaField = PHX::MDField<ParamScalarT>(p.get<std::string> ("Bed Roughness Variable Name"), dl->qp_scalar);
+      this->addDependentField (lambdaField);
+    }
+    else
+    {
+      lambdaParam    = PHX::MDField<ScalarT,Dim>("Bed Roughness", dl->shared_param);
+      this->addDependentField (lambdaParam);
+    }
   }
   else if (betaType == "Regularized Coulomb")
   {
@@ -129,14 +139,24 @@ BasalFrictionCoefficient (const Teuchos::ParameterList& p,
     N              = PHX::MDField<HydroScalarT>(p.get<std::string> ("Effective Pressure QP Variable Name"), dl->qp_scalar);
     u_norm         = PHX::MDField<IceScalarT>(p.get<std::string> ("Sliding Velocity QP Variable Name"), dl->qp_scalar);
     muParam        = PHX::MDField<ScalarT,Dim>("Coulomb Friction Coefficient", dl->shared_param);
-    lambdaParam    = PHX::MDField<ScalarT,Dim>("Bed Roughness", dl->shared_param);
     powerParam     = PHX::MDField<ScalarT,Dim>("Power Exponent", dl->shared_param);
 
     this->addDependentField (muParam);
-    this->addDependentField (lambdaParam);
     this->addDependentField (powerParam);
     this->addDependentField (N);
     this->addDependentField (u_norm);
+
+    distributedLambda = beta_list.get<bool>("Distributed Bed Roughness",false);
+    if (distributedLambda)
+    {
+      lambdaField = PHX::MDField<ParamScalarT>(p.get<std::string> ("Bed Roughness Variable Name"), dl->qp_scalar);
+      this->addDependentField (lambdaField);
+    }
+    else
+    {
+      lambdaParam    = PHX::MDField<ScalarT,Dim>("Bed Roughness", dl->shared_param);
+      this->addDependentField (lambdaParam);
+    }
   }
   else
   {
@@ -183,10 +203,13 @@ postRegistrationSetup (typename Traits::SetupData d,
     case POWER_LAW:
     case REGULARIZED_COULOMB:
       this->utils.setFieldData(muParam,fm);
-      this->utils.setFieldData(lambdaParam,fm);
       this->utils.setFieldData(powerParam,fm);
       this->utils.setFieldData(N,fm);
       this->utils.setFieldData(u_norm,fm);
+      if (distributedLambda)
+        this->utils.setFieldData(lambdaField,fm);
+      else
+        this->utils.setFieldData(lambdaParam,fm);
   }
 
   if (use_stereographic_map)
@@ -205,14 +228,17 @@ evaluateFields (typename Traits::EvalData workset)
     if (logParameters)
     {
       mu = std::exp(muParam(0));
-      lambda = std::exp(lambdaParam(0));
       power = std::exp(powerParam(0));
+
+      if (!distributedLambda)
+        lambda = std::exp(lambdaParam(0));
     }
     else
     {
       mu = muParam(0);
-      lambda = lambdaParam(0);
       power = powerParam(0);
+      if (!distributedLambda)
+        lambda = lambdaParam(0);
     }
 #ifdef OUTPUT_TO_SCREEN
     Teuchos::RCP<Teuchos::FancyOStream> output(Teuchos::VerboseObjectBase::getDefaultOStream());
@@ -221,7 +247,7 @@ evaluateFields (typename Traits::EvalData workset)
     output->setProcRankAndSize (procRank, numProcs);
     output->setOutputToRootOnly (0);
 
-    if (printedLambda!=lambda)
+    if (!distributedLambda && printedLambda!=lambda)
     {
       *output << "[Basal Friction Coefficient<" << PHX::typeAsString<EvalT>() << ">] lambda = " << lambda << "\n";
       printedLambda = lambda;
@@ -242,143 +268,127 @@ evaluateFields (typename Traits::EvalData workset)
                                 "\nError in FELIX::BasalFrictionCoefficient: 'Power Exponent' must be >= 0.\n");
     TEUCHOS_TEST_FOR_EXCEPTION (mu<0, Teuchos::Exceptions::InvalidParameter,
                                 "\nError in FELIX::BasalFrictionCoefficient: 'Coulomb Friction Coefficient' must be >= 0.\n");
-    TEUCHOS_TEST_FOR_EXCEPTION (lambda<0, Teuchos::Exceptions::InvalidParameter,
+    TEUCHOS_TEST_FOR_EXCEPTION (!distributedLambda && lambda<0, Teuchos::Exceptions::InvalidParameter,
                                 "\nError in FELIX::BasalFrictionCoefficient: \"Bed Roughness\" must be >= 0.\n");
   }
 
   if (IsStokes)
+    evaluateFieldsSide(workset,mu,lambda,power);
+  else
+    evaluateFieldsCell(workset,mu,lambda,power);
+}
+
+template<typename EvalT, typename Traits, bool IsHydrology, bool IsStokes>
+void BasalFrictionCoefficient<EvalT, Traits, IsHydrology, IsStokes>::
+evaluateFieldsSide (typename Traits::EvalData workset, ScalarT mu, ScalarT lambda, ScalarT power)
+{
+  if (workset.sideSets->find(basalSideName)==workset.sideSets->end())
+    return;
+
+  const std::vector<Albany::SideStruct>& sideSet = workset.sideSets->at(basalSideName);
+  for (auto const& it_side : sideSet)
   {
-    if (workset.sideSets->find(basalSideName)==workset.sideSets->end())
-      return;
+    // Get the local data of side and cell
+    const int cell = it_side.elem_LID;
+    const int side = it_side.side_local_id;
 
-
-    const std::vector<Albany::SideStruct>& sideSet = workset.sideSets->at(basalSideName);
-    for (auto const& it_side : sideSet)
+    switch (beta_type)
     {
-      // Get the local data of side and cell
-      const int cell = it_side.elem_LID;
-      const int side = it_side.side_local_id;
+      case GIVEN_CONSTANT:
+        return;   // We can save ourself some useless iterations
 
-      switch (beta_type)
-      {
-        case GIVEN_CONSTANT:
-          return;   // We can save ourself some useless iterations
+      case GIVEN_FIELD:
+        for (int qp=0; qp<numQPs; ++qp)
+        {
+          beta(cell,side,qp) = beta_given_field(cell,side,qp);
+        }
+        break;
 
-        case GIVEN_FIELD:
+      case POWER_LAW:
+        for (int qp=0; qp<numQPs; ++qp)
+        {
+          beta(cell,side,qp) = mu * N(cell,side,qp) * std::pow (u_norm(cell,side,qp), power);
+        }
+        break;
+
+      case REGULARIZED_COULOMB:
+        if (distributedLambda)
           for (int qp=0; qp<numQPs; ++qp)
           {
-            beta(cell,side,qp) = beta_given_field(cell,side,qp);
+            ScalarT q = u_norm(cell,side,qp) / ( u_norm(cell,side,qp) + lambdaField(cell,side,qp)*std::pow(A*N(cell,side,qp),1./power) );
+            beta(cell,side,qp) = mu * N(cell,side,qp) * std::pow( q, power) / u_norm(cell,side,qp);
           }
-          break;
-
-        case POWER_LAW:
-          for (int qp=0; qp<numQPs; ++qp)
-          {
-            beta(cell,side,qp) = mu * N(cell,side,qp) * std::pow (u_norm(cell,side,qp), power);
-          }
-          break;
-
-        case REGULARIZED_COULOMB:
+        else
           for (int qp=0; qp<numQPs; ++qp)
           {
             ScalarT q = u_norm(cell,side,qp) / ( u_norm(cell,side,qp) + lambda*std::pow(A*N(cell,side,qp),1./power) );
             beta(cell,side,qp) = mu * N(cell,side,qp) * std::pow( q, power) / u_norm(cell,side,qp);
           }
-          break;
-
-        case EXP_GIVEN_FIELD:
-          for (int qp=0; qp<numQPs; ++qp)
-          {
-            beta(cell,side,qp) = std::exp(beta_given_field(cell,side,qp));
-          }
-          break;
-      }
-
-      // Correct the value if we are using a stereographic map
-      if (use_stereographic_map)
-      {
-        for (int qp=0; qp<numQPs; ++qp)
-        {
-          MeshScalarT x = coordVec(cell,side,qp,0) - x_0;
-          MeshScalarT y = coordVec(cell,side,qp,1) - y_0;
-          MeshScalarT h = 4.0*R2/(4.0*R2 + x*x + y*y);
-          beta(cell,side,qp) *= h*h;
-        }
-      }
-    }
-  }
-  else if (IsHydrology)
-  {
-    switch (beta_type)
-    {
-      case GIVEN_CONSTANT:
-        break;   // We don't have anything to do
-
-      case GIVEN_FIELD:
-        for (int cell=0; cell<workset.numCells; ++cell)
-          for (int qp=0; qp<numQPs; ++qp)
-              beta(cell,qp) = beta_given_field(cell,qp);
-        break;
-
-      case POWER_LAW:
-        for (int cell=0; cell<workset.numCells; ++cell)
-          for (int qp=0; qp<numQPs; ++qp)
-            beta(cell,qp) = mu * N(cell,qp) * std::pow (u_norm(cell,qp), power);
-        break;
-
-      case REGULARIZED_COULOMB:
-        for (int cell=0; cell<workset.numCells; ++cell)
-          for (int qp=0; qp<numQPs; ++qp)
-          {
-            ScalarT q = u_norm(cell,qp) / ( u_norm(cell,qp) + lambda*std::pow(A*N(cell,qp),1./power) );
-            beta(cell,qp) = mu * N(cell,qp) * std::pow( q, power) / u_norm(cell,qp);
-          }
         break;
 
       case EXP_GIVEN_FIELD:
-        for (int cell=0; cell<workset.numCells; ++cell)
-          for (int qp=0; qp<numQPs; ++qp)
-          {
-            beta(cell,qp) = std::exp(beta_given_field(cell,qp));
-          }
+        for (int qp=0; qp<numQPs; ++qp)
+        {
+          beta(cell,side,qp) = std::exp(beta_given_field(cell,side,qp));
+        }
         break;
     }
 
     // Correct the value if we are using a stereographic map
     if (use_stereographic_map)
     {
-      for (int cell=0; cell<workset.numCells; ++cell)
+      for (int qp=0; qp<numQPs; ++qp)
       {
-        for (int qp=0; qp<numQPs; ++qp)
-        {
-          MeshScalarT x = coordVec(cell,qp,0) - x_0;
-          MeshScalarT y = coordVec(cell,qp,1) - y_0;
-          MeshScalarT h = 4.0*R2/(4.0*R2 + x*x + y*y);
-          beta(cell,qp) *= h*h;
-        }
+        MeshScalarT x = coordVec(cell,side,qp,0) - x_0;
+        MeshScalarT y = coordVec(cell,side,qp,1) - y_0;
+        MeshScalarT h = 4.0*R2/(4.0*R2 + x*x + y*y);
+        beta(cell,side,qp) *= h*h;
       }
     }
   }
-  else
+}
+
+template<typename EvalT, typename Traits, bool IsHydrology, bool IsStokes>
+void BasalFrictionCoefficient<EvalT, Traits, IsHydrology, IsStokes>::
+evaluateFieldsCell (typename Traits::EvalData workset, ScalarT mu, ScalarT lambda, ScalarT power)
+{
+  switch (beta_type)
   {
-    switch (beta_type)
-    {
-      case GIVEN_CONSTANT:
-        break;   // We don't have anything to do
+    case GIVEN_CONSTANT:
+      break;   // We don't have anything to do
 
-      case GIVEN_FIELD:
-        for (int cell=0; cell<workset.numCells; ++cell)
-          for (int qp=0; qp<numQPs; ++qp)
-              beta(cell,qp) = beta_given_field(cell,qp);
-        break;
+    case GIVEN_FIELD:
+      for (int cell=0; cell<workset.numCells; ++cell)
+        for (int qp=0; qp<numQPs; ++qp)
+            beta(cell,qp) = beta_given_field(cell,qp);
+      break;
 
-      case POWER_LAW:
-        for (int cell=0; cell<workset.numCells; ++cell)
-          for (int qp=0; qp<numQPs; ++qp)
-            beta(cell,qp) = mu * N(cell,qp) * std::pow (u_norm(cell,qp), power);
-        break;
+    case POWER_LAW:
+      for (int cell=0; cell<workset.numCells; ++cell)
+        for (int qp=0; qp<numQPs; ++qp)
+          beta(cell,qp) = mu * N(cell,qp) * std::pow (u_norm(cell,qp), power);
+      break;
 
-      case REGULARIZED_COULOMB:
+    case REGULARIZED_COULOMB:
+      if (distributedLambda)
+      {
+        if (logParameters)
+          for (int cell=0; cell<workset.numCells; ++cell)
+            for (int qp=0; qp<numQPs; ++qp)
+            {
+              ScalarT q = u_norm(cell,qp) / ( u_norm(cell,qp) + lambdaField(cell,qp)*A*std::pow(std::exp(N(cell,qp)),3) );
+              beta(cell,qp) = mu * std::exp(N(cell,qp)) * std::pow( q, power) / u_norm(cell,qp);
+            }
+        else
+          for (int cell=0; cell<workset.numCells; ++cell)
+            for (int qp=0; qp<numQPs; ++qp)
+            {
+              ScalarT q = u_norm(cell,qp) / ( u_norm(cell,qp) + lambdaField(cell,qp)*A*std::pow(std::max(N(cell,qp),0.0),3) );
+              beta(cell,qp) = mu * std::max(N(cell,qp),0.0) * std::pow( q, power) / u_norm(cell,qp);
+            }
+      }
+      else
+      {
         if (logParameters)
           for (int cell=0; cell<workset.numCells; ++cell)
             for (int qp=0; qp<numQPs; ++qp)
@@ -393,15 +403,30 @@ evaluateFields (typename Traits::EvalData workset)
               ScalarT q = u_norm(cell,qp) / ( u_norm(cell,qp) + lambda*A*std::pow(std::max(N(cell,qp),0.0),3) );
               beta(cell,qp) = mu * std::max(N(cell,qp),0.0) * std::pow( q, power) / u_norm(cell,qp);
             }
-        break;
+      }
+      break;
 
-      case EXP_GIVEN_FIELD:
-        for (int cell=0; cell<workset.numCells; ++cell)
-          for (int qp=0; qp<numQPs; ++qp)
-          {
-            beta(cell,qp) = std::exp(beta_given_field(cell,qp));
-          }
-        break;
+    case EXP_GIVEN_FIELD:
+      for (int cell=0; cell<workset.numCells; ++cell)
+        for (int qp=0; qp<numQPs; ++qp)
+        {
+          beta(cell,qp) = std::exp(beta_given_field(cell,qp));
+        }
+      break;
+  }
+
+  // Correct the value if we are using a stereographic map
+  if (use_stereographic_map)
+  {
+    for (int cell=0; cell<workset.numCells; ++cell)
+    {
+      for (int qp=0; qp<numQPs; ++qp)
+      {
+        MeshScalarT x = coordVec(cell,qp,0) - x_0;
+        MeshScalarT y = coordVec(cell,qp,1) - y_0;
+        MeshScalarT h = 4.0*R2/(4.0*R2 + x*x + y*y);
+        beta(cell,qp) *= h*h;
+      }
     }
   }
 }

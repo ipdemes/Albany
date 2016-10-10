@@ -132,13 +132,12 @@ void FELIX::StokesFOHydrology::buildProblem (Teuchos::ArrayRCP<Teuchos::RCP<Alba
   const Albany::MeshSpecsStruct& basalMeshSpecs = *meshSpecs[0]->sideSetMeshSpecs.at(basalSideName)[0];
 
   const int worksetSize     = meshSpecs[0]->worksetSize;
-  const int vecDim          = stokes_neq;
   const int numCellSides    = cellType->getFaceCount();
   const int numCellVertices = cellType->getNodeCount();
   const int numCellNodes    = cellBasis->getCardinality();
   const int numCellQPs      = cellCubature->getNumPoints();
 
-  dl = rcp(new Albany::Layouts(worksetSize,numCellVertices,numCellNodes,numCellQPs,numDim,vecDim));
+  dl = rcp(new Albany::Layouts(worksetSize,numCellVertices,numCellNodes,numCellQPs,numDim,stokes_neq));
 
   // Building also basal side structures
   const CellTopologyData * const basal_side_top = &basalMeshSpecs.ctd;
@@ -153,7 +152,7 @@ void FELIX::StokesFOHydrology::buildProblem (Teuchos::ArrayRCP<Teuchos::RCP<Alba
   int numBasalSideQPs      = basalCubature->getNumPoints();
 
   dl_basal = rcp(new Albany::Layouts(worksetSize,numBasalSideVertices,numBasalSideNodes,
-                                     numBasalSideQPs,numDim-1,numDim,numCellSides,vecDim));
+                                     numBasalSideQPs,numDim-1,numDim,numCellSides,stokes_neq));
   dl->side_layouts[basalSideName] = dl_basal;
 
   int numSurfaceSideVertices = -1;
@@ -180,7 +179,7 @@ void FELIX::StokesFOHydrology::buildProblem (Teuchos::ArrayRCP<Teuchos::RCP<Alba
     numSurfaceSideQPs      = surfaceCubature->getNumPoints();
 
     dl_surface = rcp(new Albany::Layouts(worksetSize,numSurfaceSideVertices,numSurfaceSideNodes,
-                                         numSurfaceSideQPs,numDim-1,numDim,numCellSides,vecDim));
+                                         numSurfaceSideQPs,numDim-1,numDim,numCellSides,stokes_neq));
     dl->side_layouts[surfaceSideName] = dl_surface;
   }
 
@@ -197,7 +196,6 @@ void FELIX::StokesFOHydrology::buildProblem (Teuchos::ArrayRCP<Teuchos::RCP<Alba
        << "  CellNodes           = " << numCellNodes << "\n"
        << "  CellQuadPts         = " << numCellQPs << "\n"
        << "  Dim                 = " << numDim << "\n"
-       << "  VecDim              = " << vecDim << "\n"
        << "  BasalSideVertices   = " << numBasalSideVertices << "\n"
        << "  BasalSideNodes      = " << numBasalSideNodes << "\n"
        << "  BasalSideQuadPts    = " << numBasalQPs << "\n"
@@ -241,27 +239,17 @@ FELIX::StokesFOHydrology::constructDirichletEvaluators(
         const Albany::MeshSpecsStruct& meshSpecs)
 {
   // Construct Dirichlet evaluators for all nodesets and names
-  std::vector<std::string> stokes_dir_names(neq);
+  std::vector<std::string> dir_names(neq);
   for (int i=0; i<stokes_neq; i++) {
     std::stringstream s; s << "U" << i;
-    stokes_dir_names[i] = s.str();
+    dir_names[i] = s.str();
   }
-
-  std::map<std::string,std::vector<std::string>> hydro_dir_names;
-  hydro_dir_names[basalSideName].push_back("Hydrostatic Potential");
+  dir_names[stokes_neq] = "Hydraulic Potential";
   if (hydro_neq>1)
-    hydro_dir_names[basalSideName].push_back("Water Thickness");
-
-  std::map<std::string,std::vector<std::string>> ss_nsNames;
-  ss_nsNames[basalSideName] = meshSpecs.sideSetMeshSpecs.at(basalSideName)[0]->nsNames;
-
-  std::map<std::string,std::vector<int>> ss_bcOffsets;
-  ss_bcOffsets[basalSideName].push_back(stokes_neq);
-  if (hydro_neq>1)
-    ss_bcOffsets[basalSideName].push_back(stokes_neq+1);
+    dir_names[stokes_neq+1] = "Water Thickness";
 
   Albany::BCUtils<Albany::DirichletTraits> dirUtils;
-  dfm = dirUtils.constructBCEvaluators(meshSpecs.nsNames, stokes_dir_names, this->params, this->paramLib, neq);
+  dfm = dirUtils.constructBCEvaluators(meshSpecs.nsNames, dir_names, this->params, this->paramLib, neq);
 }
 
 // Neumann BCs

@@ -24,6 +24,7 @@
 #include "PHAL_LoadStateField.hpp"
 
 #include "FELIX_BasalFrictionCoefficient.hpp"
+#include "FELIX_BasalFrictionCoefficientNode.hpp"
 #include "FELIX_EffectivePressure.hpp"
 #include "FELIX_FieldNorm.hpp"
 #include "FELIX_ParamEnum.hpp"
@@ -162,55 +163,23 @@ Hydrology::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0,
   ev = rcp(new PHAL::LoadStateField<EvalT,PHAL::AlbanyTraits>(*p));
   fm0.template registerEvaluator<EvalT>(ev);
 
-  // Basal Friction
+  // Basal friction coefficient (given)
   entity = Albany::StateStruct::NodalDataToElemNode;
   p = stateMgr.registerStateVariable("basal_friction", dl->node_scalar, elementBlockName, true, &entity);
   p->set<const std::string>("Field Name","Beta Given");
   ev = rcp(new PHAL::LoadStateField<EvalT,PHAL::AlbanyTraits>(*p));
   fm0.template registerEvaluator<EvalT>(ev);
 
-  // If uested, we save an average of Beta Given on cells (for comparison with Beta)
-  state_name = "basal_friction_cell_avg";
-  field_name = "Beta Given";
-  if (std::find(requirements.begin(), requirements.end(), state_name)!=requirements.end())
-  {
-    // We interpolate the given beta from quad point to side
-    ev = evalUtils.getPSTUtils().constructNodesToCellInterpolationEvaluator (field_name, false);
-    fm0.template registerEvaluator<EvalT>(ev);
-
-    // We save it on the basal mesh
-    entity = Albany::StateStruct::ElemData;
-    p = stateMgr.registerStateVariable(state_name, dl->cell_scalar2, elementBlockName, true, &entity);
-    p->set<std::string>("Field Name", field_name);
-    p->set<bool>("Is Vector Field", false);
-    ev = Teuchos::rcp(new PHAL::SaveStateField<EvalT,PHAL::AlbanyTraits>(*p));
-    fm0.template registerEvaluator<EvalT>(ev);
-
-    // Only PHAL::AlbanyTraits::Residual evaluates something
+  // Basal friction coefficient (computed)
+  entity = Albany::StateStruct::NodalDataToElemNode;
+  p = stateMgr.registerStateVariable("beta", dl->node_scalar, elementBlockName, true, &entity);
+  p->set<std::string>("Field Name", "Beta");
+  p->set<bool>("Nodal State", true);
+  ev = Teuchos::rcp(new PHAL::SaveStateField<EvalT,PHAL::AlbanyTraits>(*p));
+  fm0.template registerEvaluator<EvalT>(ev);
+  if (std::find(requirements.begin(), requirements.end(), "beta")!=requirements.end())
     if (ev->evaluatedFields().size()>0)
       fm0.template requireField<EvalT>(*ev->evaluatedFields()[0]);
-  }
-
-  state_name = "beta_cell_avg";
-  field_name = "Beta";
-  if (std::find(requirements.begin(), requirements.end(), state_name)!=requirements.end())
-  {
-    // We interpolate beta from quad point to cell
-    ev = evalUtils.constructQuadPointsToCellInterpolationEvaluator (field_name, false);
-    fm0.template registerEvaluator<EvalT>(ev);
-
-    // We save it on the basal mesh
-    entity = Albany::StateStruct::ElemData;
-    p = stateMgr.registerStateVariable(state_name, dl->cell_scalar2, elementBlockName, true, &entity);
-    p->set<std::string>("Field Name", field_name);
-    p->set<bool>("Is Vector Field", false);
-    ev = Teuchos::rcp(new PHAL::SaveStateField<EvalT,PHAL::AlbanyTraits>(*p));
-    fm0.template registerEvaluator<EvalT>(ev);
-
-    // Only PHAL::AlbanyTraits::Residual evaluates something
-    if (ev->evaluatedFields().size()>0)
-      fm0.template requireField<EvalT>(*ev->evaluatedFields()[0]);
-  }
 
   // Ice thickness
   entity = Albany::StateStruct::NodalDataToElemNode;
@@ -255,20 +224,16 @@ Hydrology::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0,
     fm0.template registerEvaluator<EvalT>(ev);
   }
 
+  // Effective Pressure
+  entity = Albany::StateStruct::NodalDataToElemNode;
+  p = stateMgr.registerStateVariable("effective_pressure", dl->node_scalar, elementBlockName, true, &entity);
+  p->set<const std::string>("Field Name","Effective Pressure");
+  p->set<bool>("Nodal State",true);
+  ev = rcp(new PHAL::SaveStateField<EvalT, PHAL::AlbanyTraits>(*p));
+  fm0.template registerEvaluator<EvalT>(ev);
   if (std::find(requirements.begin(),requirements.end(),"effective_pressure")!=requirements.end())
-  {
-    // Effective Pressure
-    entity = Albany::StateStruct::NodalDataToElemNode;
-    p = stateMgr.registerStateVariable("effective_pressure", dl->node_scalar, elementBlockName, true, &entity);
-    p->set<const std::string>("Field Name","Effective Pressure");
-    p->set<bool>("Nodal State",true);
-    ev = rcp(new PHAL::SaveStateField<EvalT, PHAL::AlbanyTraits>(*p));
-    fm0.template registerEvaluator<EvalT>(ev);
-
-    // Only PHAL::AlbanyTraits::Residual evaluates something
     if (ev->evaluatedFields().size()>0)
       fm0.template requireField<EvalT>(*ev->evaluatedFields()[0]);
-  }
 
   // -------------------- Interpolation and utilities ------------------------ //
 
@@ -306,10 +271,6 @@ Hydrology::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0,
   // Scatter residual
   int offset = 0;
   ev = evalUtils.constructScatterResidualEvaluator(false, resid_names, offset, "Scatter Hydrology");
-  fm0.template registerEvaluator<EvalT> (ev);
-
-  // Get qp coordinates (for source terms)
-  ev = evalUtils.constructMapToPhysicalFrameEvaluator(cellType, cubature);
   fm0.template registerEvaluator<EvalT> (ev);
 
   // Interpolate Hydraulic Potential
@@ -375,7 +336,7 @@ Hydrology::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0,
     fm0.template registerEvaluator<EvalT>(ev);
   }
 
-  //--- Hydraulic Potential Gradient Norm ---//
+  //--- Hydraulic Potential Gradient Norm (in case of p-laplacian)---//
   p = Teuchos::rcp(new Teuchos::ParameterList("FELIX Potential Gradient Norm"));
 
   // Input
@@ -451,7 +412,7 @@ Hydrology::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0,
   // Output
   p->set<std::string>("Effective Pressure Variable Name","Effective Pressure");
 
-  ev = Teuchos::rcp(new FELIX::EffectivePressure<EvalT,PHAL::AlbanyTraits, true, false>(*p,dl));
+  ev = Teuchos::rcp(new FELIX::EffectivePressure<EvalT,PHAL::AlbanyTraits, false, false>(*p,dl));
   fm0.template registerEvaluator<EvalT>(ev);
 
   //--- FELIX basal friction coefficient ---//
@@ -461,7 +422,6 @@ Hydrology::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0,
   p->set<std::string>("Sliding Velocity QP Variable Name", "Sliding Velocity");
   p->set<std::string>("BF Variable Name", "BF");
   p->set<std::string>("Effective Pressure QP Variable Name", "Effective Pressure");
-  p->set<bool>("Hydrology",true);
   p->set<Teuchos::ParameterList*>("Parameter List", &params->sublist("FELIX Basal Friction Coefficient"));
   p->set<Teuchos::ParameterList*>("Stereographic Map", &params->sublist("Stereographic Map"));
 
@@ -469,6 +429,35 @@ Hydrology::constructEvaluators (PHX::FieldManager<PHAL::AlbanyTraits>& fm0,
   p->set<std::string>("Basal Friction Coefficient Variable Name", "Beta");
 
   ev = Teuchos::rcp(new FELIX::BasalFrictionCoefficient<EvalT,PHAL::AlbanyTraits,true,false>(*p,dl));
+  fm0.template registerEvaluator<EvalT>(ev);
+
+  // ------- Sliding Velocity -------- //
+  p = Teuchos::rcp(new Teuchos::ParameterList("FELIX Velocity Norm"));
+
+  // Input
+  p->set<std::string>("Field Name","Basal Velocity");
+  p->set<std::string>("Field Layout","Cell Node Vector");
+  p->set<Teuchos::ParameterList*>("Parameter List", &params->sublist("FELIX Field Norm"));
+
+  // Output
+  p->set<std::string>("Field Norm Name","Sliding Velocity");
+
+  ev = Teuchos::rcp(new FELIX::FieldNormParam<EvalT,PHAL::AlbanyTraits>(*p,dl));
+  fm0.template registerEvaluator<EvalT>(ev);
+
+  //--- FELIX basal friction coefficient node (to be saved in the mesh) ---//
+  p = Teuchos::rcp(new Teuchos::ParameterList("FELIX Basal Friction Coefficient Node"));
+
+  //Input
+  p->set<std::string>("Sliding Velocity Variable Name", "Sliding Velocity");
+  p->set<std::string>("Effective Pressure Variable Name", "Effective Pressure");
+  p->set<Teuchos::ParameterList*>("Parameter List", &params->sublist("FELIX Basal Friction Coefficient"));
+  p->set<Teuchos::ParameterList*>("Stereographic Map", &params->sublist("Stereographic Map"));
+
+  //Output
+  p->set<std::string>("Basal Friction Coefficient Variable Name", "Beta");
+
+  ev = Teuchos::rcp(new FELIX::BasalFrictionCoefficientNode<EvalT,PHAL::AlbanyTraits,true,false>(*p,dl));
   fm0.template registerEvaluator<EvalT>(ev);
 
   // ------- Hydrology Residual Potential Eqn-------- //

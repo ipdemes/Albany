@@ -239,6 +239,28 @@ void Albany::GenericSTKMeshStruct::SetupFieldData(
 
 }
 
+void Albany::GenericSTKMeshStruct::setAllPartsIO()
+{
+  for (auto& it : partVec)
+  {
+    stk::mesh::Part& part = *it.second;
+    if (!stk::io::is_part_io_part(part))
+      stk::io::put_io_part_attribute(part);
+  }
+  for (auto& it : nsPartVec)
+  {
+    stk::mesh::Part& part = *it.second;
+    if (!stk::io::is_part_io_part(part))
+      stk::io::put_io_part_attribute(part);
+  }
+  for (auto& it : ssPartVec)
+  {
+    stk::mesh::Part& part = *it.second;
+    if (!stk::io::is_part_io_part(part))
+      stk::io::put_io_part_attribute(part);
+  }
+}
+
 bool Albany::GenericSTKMeshStruct::buildPerceptEMesh(){
 
    // If there exists a nonempty "refine", "convert", or "enrich" string
@@ -740,6 +762,7 @@ void Albany::GenericSTKMeshStruct::checkNodeSetsFromSideSetsIntegrity ()
   // nodes, that is, makes sure that 'declare_relation' was called to
   // establish the relation between the side and its node.
 
+std::cout << "There are " << m_nodesets_from_sidesets.size() << " nodesets built from sidesets.\n";
   for (auto ssn : m_nodesets_from_sidesets)
   {
     // Fetch the part
@@ -755,8 +778,10 @@ void Albany::GenericSTKMeshStruct::checkNodeSetsFromSideSetsIntegrity ()
 
     // For each side, we check that it has the right number of nodes.
     unsigned num_nodes = metaData->get_topology(*ssPart).num_nodes();
+std::cout << "Nodeset " << ssn << " has " << sides.size() << " sides.\n";
     for (const auto& side : sides)
     {
+std::cout << "  Side " << bulkData->identifier(side) << " has " << bulkData->num_nodes(side) << " nodes.\n";
       TEUCHOS_TEST_FOR_EXCEPTION (bulkData->num_nodes(side)==num_nodes, std::runtime_error,
                                   "Error! Found a side with wrong number of nodes stored. Most likely,"
                                   "its nodes were not added to the side with 'declare_relation').\n");
@@ -818,7 +843,7 @@ void Albany::GenericSTKMeshStruct::initializeSideSetMeshStructs (const Teuchos::
       ISFT* side_to_cell_map = &this->sideSetMeshStructs[ss_name]->metaData->declare_field<ISFT> (stk::topology::ELEM_RANK, "side_to_cell_map");
       stk::mesh::put_field(*side_to_cell_map, this->sideSetMeshStructs[ss_name]->metaData->universal_part(), 1);
 #ifdef ALBANY_SEACAS
-      stk::io::set_field_role(*side_to_cell_map, Ioss::Field::TRANSIENT);
+      stk::io::set_field_role(*side_to_cell_map, Ioss::Field::MESH);
 #endif
       // We need to create the 2D cell -> (3D cell, side_node_ids) map in the side mesh now
       const int num_nodes = sideSetMeshStructs[ss_name]->getMeshSpecs()[0]->ctd.node_count;
@@ -826,7 +851,7 @@ void Albany::GenericSTKMeshStruct::initializeSideSetMeshStructs (const Teuchos::
       IVFT* side_nodes_ids = &this->sideSetMeshStructs[ss_name]->metaData->declare_field<IVFT> (stk::topology::ELEM_RANK, "side_nodes_ids");
       stk::mesh::put_field(*side_nodes_ids, this->sideSetMeshStructs[ss_name]->metaData->universal_part(), num_nodes);
 #ifdef ALBANY_SEACAS
-      stk::io::set_field_role(*side_nodes_ids, Ioss::Field::TRANSIENT);
+      stk::io::set_field_role(*side_nodes_ids, Ioss::Field::MESH);
 #endif
     }
   }
@@ -1144,7 +1169,7 @@ void Albany::GenericSTKMeshStruct::loadRequiredInputFields (const AbstractFieldC
   for (auto rname : req)
     missing.insert(rname);
 
-  std::string fname, fscope, ftype;
+  std::string fname, fusage, ftype;
   int num_fields = req_fields_info->get<int>("Number Of Fields",0);
   for (int ifield=0; ifield<num_fields; ++ifield)
   {
@@ -1155,26 +1180,26 @@ void Albany::GenericSTKMeshStruct::loadRequiredInputFields (const AbstractFieldC
     fname = fparams.get<std::string>("Field Name");
     missing.erase(fname);
 
-    fscope = fparams.get<std::string>("Field Scope", "Input From File");
-    if (fscope == "Output")
+    fusage = fparams.get<std::string>("Field Usage", "Input From File");
+    if (fusage == "Output")
     {
       *out << "  - Skipping field '" << fname << "' since it's listed as output. Make sure there's an evaluator set to save it!\n";
       continue;
 
     }
-    else if (fscope == "Unused")
+    else if (fusage == "Unused")
     {
       *out << "  - Skipping field '" << fname << "' since it's listed as unused.\n";
       continue;
     }
-    else if (fscope=="Input From Mesh")
+    else if (fusage=="Input From Mesh")
     {
       *out << "  - Skipping field '" << fname << "' since it's listed as already present in the mesh. Make sure this is true, since we can't check!\n";
       continue;
     }
 
-    TEUCHOS_TEST_FOR_EXCEPTION (fscope!="Input From File", Teuchos::Exceptions::InvalidParameter,
-                                  "Error! 'Field Scope' for field '" << fname << "' must be one of 'Output', 'Unused', 'Input From File' or 'Input From Mesh'.\n");
+    TEUCHOS_TEST_FOR_EXCEPTION (fusage!="Input From File", Teuchos::Exceptions::InvalidParameter,
+                                "Error! 'Field Usage' for field '" << fname << "' must be one of 'Output', 'Unused', 'Input From File' or 'Input From Mesh'.\n");
 
     ftype = fparams.get<std::string>("Field Type","INVALID");
 
@@ -1214,8 +1239,8 @@ void Albany::GenericSTKMeshStruct::loadRequiredInputFields (const AbstractFieldC
     else
     {
       TEUCHOS_TEST_FOR_EXCEPTION (true, Teuchos::Exceptions::InvalidParameterValue,
-                                  "Sorry, I haven't yet implemented the cases of fields that are not (Layered) Scalar nor " <<
-                                  "(Layered) Vector or that is not defined at nodes nor elements.\n");
+                                  "Error! Field '" << fname << "' has type '" << ftype << "'.\n" <<
+                                  "Unfortunately, the only supported field types so fare are 'Node/Elem Scalar/Vector' and 'Node/Elem Layered Scalar/Vector'.\n");
     }
   }
 
@@ -1366,29 +1391,22 @@ void Albany::GenericSTKMeshStruct::loadField (const std::string& field_name, con
   VFT* vector_field = 0;
   TFT* tensor_field = 0;
 
+  stk::topology::rank_t entity_rank = node ? stk::topology::NODE_RANK : stk::topology::ELEM_RANK;
+
   if (scalar && !layered)
   {
     // Purely scalar field
-    if (node)
-      scalar_field = metaData->get_field<SFT> (stk::topology::NODE_RANK, field_name);
-    else
-      scalar_field = metaData->get_field<SFT> (stk::topology::ELEM_RANK, field_name);
+    scalar_field = metaData->get_field<SFT> (entity_rank, field_name);
   }
   else if ( scalar==layered )
   {
     // Either (non-layered) vector or layered scalar field
-    if (node)
-      vector_field = metaData->get_field<VFT> (stk::topology::NODE_RANK, field_name);
-    else
-      vector_field = metaData->get_field<VFT> (stk::topology::ELEM_RANK, field_name);
+    vector_field = metaData->get_field<VFT> (entity_rank, field_name);
   }
   else
   {
     // Layered vector field
-    if (node)
-      tensor_field = metaData->get_field<TFT> (stk::topology::NODE_RANK, field_name);
-    else
-      tensor_field = metaData->get_field<TFT> (stk::topology::ELEM_RANK, field_name);
+    tensor_field = metaData->get_field<TFT> (entity_rank, field_name);
   }
 
   TEUCHOS_TEST_FOR_EXCEPTION (scalar_field==0 && vector_field==0 && tensor_field==0, std::logic_error,
@@ -1651,6 +1669,7 @@ Albany::GenericSTKMeshStruct::getValidGenericSTKParameters(std::string listname)
   validPL->set<bool>("Use Serial Mesh", false, "Read in a single mesh on PE 0 and rebalance");
   validPL->set<bool>("Transfer Solution to Coordinates", false, "Copies the solution vector to the coordinates for output");
 
+  validPL->set<bool>("Set All Parts IO", false, "If true, all parts are marked as io parts");
   validPL->set<bool>("Use Serial Mesh", false, "Read in a single mesh on PE 0 and rebalance");
   validPL->set<bool>("Use Composite Tet 10", false, "Flag to use the composite tet 10 basis in Intrepid");
   validPL->set<bool>("Build Node Sets From Side Sets",false,"Flag to build node sets from side sets");

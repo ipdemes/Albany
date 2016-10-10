@@ -699,6 +699,8 @@ void Albany::STKDiscretization::writeSolution(const Epetra_Vector& soln, const d
      double time_label = monotonicTimeLabel(time);
 
      mesh_data->begin_output_step(outputFileIdx, time_label);
+     mesh_data->write_output_mesh(outputFileIdx);
+
      int out_step = mesh_data->write_defined_output_fields(outputFileIdx);
      // Writing mesh global variables
      for (auto& it : stkMeshStruct->getFieldContainer()->getMeshVectorStates())
@@ -800,6 +802,8 @@ writeSolutionToFileT(const Tpetra_Vector& solnT, const double time,
    double time_label = monotonicTimeLabel(time);
 
      mesh_data->begin_output_step(outputFileIdx, time_label);
+     mesh_data->write_output_mesh(outputFileIdx);
+
      int out_step = mesh_data->write_defined_output_fields(outputFileIdx);
      // Writing mesh global variables
      for (auto& it : stkMeshStruct->getFieldContainer()->getMeshVectorStates())
@@ -877,6 +881,8 @@ writeSolutionMVToFile(const Tpetra_MultiVector& solnT, const double time,
    double time_label = monotonicTimeLabel(time);
 
      mesh_data->begin_output_step(outputFileIdx, time_label);
+     mesh_data->write_output_mesh(outputFileIdx);
+
      int out_step = mesh_data->write_defined_output_fields(outputFileIdx);
      // Writing mesh global variables
      for (auto& it : stkMeshStruct->getFieldContainer()->getMeshVectorStates())
@@ -1586,13 +1592,13 @@ void Albany::STKDiscretization::computeGraphsUpToFillComplete()
   Teuchos::ArrayView<GO> colAV;
 
   // determining the equations that are defined on the whole domain
-  std::vector<int> globalEqns;
+  std::vector<int> globalEqns,ssEqns;
   for (int k(0); k<neq; ++k)
   {
     if (sideSetEquations.find(k)==sideSetEquations.end())
-    {
       globalEqns.push_back(k);
-    }
+    else
+      ssEqns.push_back(k);
   }
 
   for (std::size_t i=0; i < cells.size(); i++) {
@@ -1618,6 +1624,12 @@ void Albany::STKDiscretization::computeGraphsUpToFillComplete()
             overlap_graphT->insertGlobalIndices(row, colAV);
           }
         }
+      }
+      for (std::size_t k=0; k < ssEqns.size(); ++k)
+      {
+        row = getGlobalDOF(gid(rowNode), ssEqns[k]);
+        colAV = Teuchos::arrayView(&row, 1);
+        overlap_graphT->insertGlobalIndices(row, colAV);
       }
     }
   }
@@ -1958,10 +1970,10 @@ void Albany::STKDiscretization::computeWorksetInfo()
 
 #if defined(ALBANY_LCM)
       if(stkMeshStruct->getFieldContainer()->hasSphereVolumeField() && nodes_per_element == 1){
-	double* volumeTemp = stk::mesh::field_data(*sphereVolume_field, element);
-	if(volumeTemp){
-	  sphereVolume[b][i] = volumeTemp[0];
-	}
+  double* volumeTemp = stk::mesh::field_data(*sphereVolume_field, element);
+  if(volumeTemp){
+    sphereVolume[b][i] = volumeTemp[0];
+  }
       }
       if(stkMeshStruct->getFieldContainer()->hasLatticeOrientationField()){
         latticeOrientation[b][i] = static_cast<double*>( stk::mesh::field_data(*latticeOrientation_field, element) );

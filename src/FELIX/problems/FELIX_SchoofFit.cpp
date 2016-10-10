@@ -30,13 +30,13 @@ SchoofFit (const Teuchos::RCP<Teuchos::ParameterList>& params_,
   this->rigidBodyModes->setNumPDEs(neq);
 
   // Need to allocate a fields in mesh database
-  if (params->isParameter("Required Fields"))
-  {
-    // Need to allocate a fields in mesh database
-    Teuchos::Array<std::string> req = params->get<Teuchos::Array<std::string> > ("Required Fields");
-    for (int i(0); i<req.size(); ++i)
-      this->requirements.push_back(req[i]);
-  }
+  Teuchos::Array<std::string> s_req = params->get<Teuchos::Array<std::string> > ("Required Scalar Fields");
+  for (int i(0); i<s_req.size(); ++i)
+    this->requirements.push_back(s_req[i]);
+
+  Teuchos::Array<std::string> v_req = params->get<Teuchos::Array<std::string> > ("Required Vector Fields");
+  for (int i(0); i<v_req.size(); ++i)
+    this->requirements.push_back(v_req[i]);
 }
 
 FELIX::SchoofFit::
@@ -115,8 +115,11 @@ FELIX::SchoofFit::getValidProblemParameters () const
   Teuchos::RCP<Teuchos::ParameterList> validPL =
     this->getGenericProblemParams("ValidSchoofFitProblemParams");
 
-  validPL->set<Teuchos::Array<std::string> > ("Required Fields", Teuchos::Array<std::string>(), "");
+  validPL->set<Teuchos::Array<std::string> > ("Required Scalar Fields", Teuchos::Array<std::string>(), "");
+  validPL->set<Teuchos::Array<std::string> > ("Required Vector Fields", Teuchos::Array<std::string>(), "");
+  validPL->set<Teuchos::Array<std::string> > ("Save Fields", Teuchos::Array<std::string>(), "");
   validPL->sublist("FELIX Basal Friction Coefficient", false, "Parameters needed to compute the basal friction coefficient");
+  validPL->sublist("FELIX Effective Pressure Surrogate", false, "");
   validPL->sublist("FELIX Field Norm", false, "");
   validPL->sublist("FELIX Physical Parameters", false, "");
 

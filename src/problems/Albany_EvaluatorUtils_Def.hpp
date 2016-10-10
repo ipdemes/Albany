@@ -536,6 +536,7 @@ Albany::EvaluatorUtilsBase<EvalT,Traits,ScalarT>::constructDOFCellToSideQPEvalua
     p->set<std::string>("Cell Variable Name", cell_dof_name);
     p->set<std::string>("Data Layout", layout);
     p->set<RCP<shards::CellTopology> >("Cell Type", cellType);
+    p->set<std::string>("BF Name", "BF "+sideSetName);
     p->set<std::string>("Side Set Name", sideSetName);
 
     // Output
@@ -563,7 +564,7 @@ Albany::EvaluatorUtilsBase<EvalT,Traits,ScalarT>::constructDOFSideToCellEvaluato
     RCP<ParameterList> p = rcp(new ParameterList("DOF Side To Cell"));
 
     // Input
-    p->set<std::string>("Side Variable Name", cell_dof_name);
+    p->set<std::string>("Side Variable Name", side_dof_name);
     p->set<std::string>("Data Layout", layout);
     p->set<RCP<shards::CellTopology> >("Cell Type", cellType);
     p->set<std::string>("Side Set Name", sideSetName);

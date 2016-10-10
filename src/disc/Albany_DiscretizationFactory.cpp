@@ -357,7 +357,7 @@ Albany::DiscretizationFactory::createMeshStruct (Teuchos::RCP<Teuchos::Parameter
     return Teuchos::rcp(new Albany::GmshSTKMeshStruct(disc_params, comm));
   }
 #ifdef ALBANY_FELIX
-  else if(method == "Extruded")
+  else if(method == "Extruded" || method == "Extruded StokesH")
   {
     Teuchos::RCP<Albany::AbstractMeshStruct> basalMesh;
     Teuchos::RCP<Teuchos::ParameterList> basal_params;
@@ -421,7 +421,7 @@ Albany::DiscretizationFactory::createMeshStruct (Teuchos::RCP<Teuchos::Parameter
                                "!" << std::endl << "Supplied parameter list is " << std::endl << *disc_params <<
                                "\nValid Methods are: STK1D, STK2D, STK3D, STK3DPoint, Ioss, Ioss Aeras," <<
                                " Exodus, Exodus Aeras, Cubit, PUMI, PUMI Hierarchic, Sim, Ascii," <<
-                               " Ascii2D, Extruded" << std::endl);
+                               " Ascii2D, Extruded, Extruded StokesH" << std::endl);
   }
 }
 
@@ -524,7 +524,7 @@ Albany::DiscretizationFactory::createDiscretizationFromInternalMeshStruct(
         Teuchos::RCP<Albany::AbstractSTKMeshStruct> ms = Teuchos::rcp_dynamic_cast<Albany::AbstractSTKMeshStruct>(meshStruct);
         Teuchos::RCP<Albany::STKDiscretization> disc;
 #ifdef ALBANY_FELIX
-        if (method == "Extruded")
+        if (method == "Extruded StokesH")
           disc = Teuchos::rcp(new Albany::STKDiscretizationStokesH(ms, commT, rigidBodyModes));
         else
 #endif

@@ -10,8 +10,8 @@
 
 #include "Albany_Utils.hpp"
 
-template<typename EvalT, typename Traits, typename TargetScalarT>
-PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, TargetScalarT>::
+template<typename EvalT, typename Traits, typename SourceScalarT, typename TargetScalarT>
+PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, SourceScalarT, TargetScalarT>::
 ResponseSquaredL2ErrorSideBase(Teuchos::ParameterList& p, const Teuchos::RCP<Albany::Layouts>& dl)
 {
   // get response parameter list
@@ -36,12 +36,12 @@ ResponseSquaredL2ErrorSideBase(Teuchos::ParameterList& p, const Teuchos::RCP<Alb
 
   fieldDim = getLayout(dl_side,rank,layout);
 
-  computedField = PHX::MDField<ScalarT>(fname,layout);
+  sourceField = PHX::MDField<SourceScalarT>(fname,layout);
   targetField   = PHX::MDField<TargetScalarT>(target_fname,layout);
   w_measure     = PHX::MDField<RealType,Cell,Side,QuadPoint>("Weighted Measure " + sideSetName, dl_side->qp_scalar);
   scaling       = plist->get("Scaling",1.0);
 
-  this->addDependentField(computedField);
+  this->addDependentField(sourceField);
   if (target_fname=="ZERO")
   {
     target_zero = true;
@@ -69,11 +69,11 @@ ResponseSquaredL2ErrorSideBase(Teuchos::ParameterList& p, const Teuchos::RCP<Alb
 }
 
 // **********************************************************************
-template<typename EvalT, typename Traits, typename TargetScalarT>
-void PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, TargetScalarT>::
+template<typename EvalT, typename Traits, typename SourceScalarT, typename TargetScalarT>
+void PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, SourceScalarT, TargetScalarT>::
 postRegistrationSetup(typename Traits::SetupData d, PHX::FieldManager<Traits>& fm)
 {
-  this->utils.setFieldData(computedField,fm);
+  this->utils.setFieldData(sourceField,fm);
   this->utils.setFieldData(targetField,fm);
   this->utils.setFieldData(w_measure,fm);
 
@@ -86,8 +86,9 @@ postRegistrationSetup(typename Traits::SetupData d, PHX::FieldManager<Traits>& f
 }
 
 // **********************************************************************
-template<typename EvalT, typename Traits, typename TargetScalarT>
-void PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, TargetScalarT>::preEvaluate(typename Traits::PreEvalData workset)
+template<typename EvalT, typename Traits, typename SourceScalarT, typename TargetScalarT>
+void PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, SourceScalarT, TargetScalarT>::
+preEvaluate(typename Traits::PreEvalData workset)
 {
   PHAL::set(this->global_response, 0.0);
 
@@ -96,8 +97,9 @@ void PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, TargetScalarT>::preEval
 }
 
 // **********************************************************************
-template<typename EvalT, typename Traits, typename TargetScalarT>
-void PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, TargetScalarT>::evaluateFields(typename Traits::EvalData workset)
+template<typename EvalT, typename Traits, typename SourceScalarT, typename TargetScalarT>
+void PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, SourceScalarT, TargetScalarT>::
+evaluateFields(typename Traits::EvalData workset)
 {
   TEUCHOS_TEST_FOR_EXCEPTION (workset.sideSets==Teuchos::null, std::logic_error,
                               "Side sets defined in input file but not properly specified on the mesh" << std::endl);
@@ -120,14 +122,14 @@ void PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, TargetScalarT>::evaluat
         ScalarT sq = 0;
         // Computing squared difference at qp
         if (fieldDim==0)
-          sq += std::pow(computedField(cell,side,qp)-targetField(cell,side,qp),2);
+          sq += std::pow(sourceField(cell,side,qp)-targetField(cell,side,qp),2);
         else if (fieldDim==1)
-          for (int j=0; j<computedField.fieldTag().dataLayout().dimension(3); ++j)
-            sq += std::pow(computedField(cell,side,qp,j)-targetField(cell,side,qp,j),2);
+          for (int j=0; j<sourceField.fieldTag().dataLayout().dimension(3); ++j)
+            sq += std::pow(sourceField(cell,side,qp,j)-targetField(cell,side,qp,j),2);
         else
-          for (int j=0; j<computedField.fieldTag().dataLayout().dimension(3); ++j)
-            for (int k=0; k<computedField.fieldTag().dataLayout().dimension(4); ++k)
-              sq += std::pow(computedField(cell,side,qp,j,k)-targetField(cell,side,qp,j,k),2);
+          for (int j=0; j<sourceField.fieldTag().dataLayout().dimension(3); ++j)
+            for (int k=0; k<sourceField.fieldTag().dataLayout().dimension(4); ++k)
+              sq += std::pow(sourceField(cell,side,qp,j,k)-targetField(cell,side,qp,j,k),2);
 
         sum += sq * w_measure(cell,side,qp);
       }
@@ -142,8 +144,9 @@ void PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, TargetScalarT>::evaluat
 }
 
 // **********************************************************************
-template<typename EvalT, typename Traits, typename TargetScalarT>
-void PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, TargetScalarT>::postEvaluate(typename Traits::PostEvalData workset)
+template<typename EvalT, typename Traits, typename SourceScalarT, typename TargetScalarT>
+void PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, SourceScalarT, TargetScalarT>::
+postEvaluate(typename Traits::PostEvalData workset)
 {
   PHAL::reduceAll<ScalarT>(*workset.comm, Teuchos::REDUCE_SUM, this->global_response);
 
@@ -155,8 +158,8 @@ void PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, TargetScalarT>::postEva
 }
 
 // **********************************************************************
-template<typename EvalT, typename Traits, typename TargetScalarT>
-int PHAL::ResponseSquaredL2ErrorSideBase<EvalT,Traits,TargetScalarT>::
+template<typename EvalT, typename Traits, typename SourceScalarT, typename TargetScalarT>
+int PHAL::ResponseSquaredL2ErrorSideBase<EvalT, Traits, SourceScalarT, TargetScalarT>::
 getLayout (const Teuchos::RCP<Albany::Layouts>& dl, const std::string& rank, Teuchos::RCP<PHX::DataLayout>& layout)
 {
   int dim = -1;
