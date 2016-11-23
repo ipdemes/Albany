@@ -69,6 +69,11 @@ bool SimLayerAdapt::queryAdaptationCriteria(int iteration)
     computeLayerTimes();
   }
   double currentTime = param_lib_->getRealValue<PHAL::AlbanyTraits::Residual>("Time");
+  *out << "queryAdaptationCriteria\n";
+  *out << "currentTime " << currentTime << '\n';
+  *out << "Simmetrix_currentLayer " << Simmetrix_currentLayer << '\n';
+  *out << "Simmetrix_numLayers " << Simmetrix_numLayers << '\n';
+  assert(Simmetrix_currentLayer < Simmetrix_numLayers);
   if (currentTime >= Simmetrix_layerTimes[Simmetrix_currentLayer]) {
     *out << "Need to remesh and add next layer\n";
     return true;
@@ -341,6 +346,14 @@ void SimLayerAdapt::computeLayerTimes() {
     totalTime += Simmetrix_layerTimes[i];
     Simmetrix_layerTimes[i] = totalTime;
   }
+
+  if (adapt_params_->isParameter("First Layer Time")) {
+    Simmetrix_layerTimes[0] = adapt_params_->get<double>("First Layer Time", 0.0);
+  }
+
+  for (i = 0; i < Simmetrix_numLayers; ++i)
+    *out << "Simmetrix_layerTimes[" << i << "] = "
+      << Simmetrix_layerTimes[i] << '\n';
 }
 /* BRD */
 
@@ -506,6 +519,7 @@ bool SimLayerAdapt::adaptMesh()
   /*IMPORTANT: next line will not work with current implementation of CTM, because
    CTM does not use param_lib*/
   double currentTime = param_lib_->getRealValue<PHAL::AlbanyTraits::Residual>("Time");
+  assert(Simmetrix_currentLayer < Simmetrix_numLayers);
   if (currentTime >= Simmetrix_layerTimes[Simmetrix_currentLayer]) {
     char meshFile[80];
     *out << "Adding layer " << Simmetrix_currentLayer+1 << "\n";
@@ -548,6 +562,7 @@ Teuchos::RCP<const Teuchos::ParameterList> SimLayerAdapt::getValidAdapterParamet
   validPL->set<bool>("Debug", false, "Print debug VTK files");
   validPL->set<bool>("Add Layer", true, "Turn on/off adding layer");
   validPL->set<double>("Uniform Temperature New Layer", 20.0, "Uniform Layer Temperature");
+  validPL->set<double>("First Layer Time", 0.0, "Overrides time to place first layer");
   return validPL;
 }
 
