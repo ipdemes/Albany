@@ -1043,9 +1043,12 @@ void Albany::APFDiscretization::computeWorksetInfo()
     for (std::size_t i=0; i<meshStruct->qptensor_states.size(); i++)
       stateArrays.elemStateArrays[b][meshStruct->qptensor_states[i]->name] =
                  meshStruct->qptensor_states[i]->getMDA(buck.size());
-    for (std::size_t i=0; i<meshStruct->scalarValue_states.size(); i++)
+    for (std::size_t i=0; i<meshStruct->scalarValue_states.size(); i++) {
+      PCU_Debug_Print("bucket %zu scalar %zu name %s\n", b, i,
+          meshStruct->scalarValue_states[i]->name.c_str());
       stateArrays.elemStateArrays[b][meshStruct->scalarValue_states[i]->name] =
                  meshStruct->scalarValue_states[i]->getMDA(1);
+    }
     for (std::size_t i=0; i<meshStruct->elemnodescalar_states.size(); ++i) {
       stateArrays.elemStateArrays[b][meshStruct->elemnodescalar_states[i]->name] =
                  meshStruct->elemnodescalar_states[i]->getMDA(buck.size());
@@ -1450,10 +1453,14 @@ initTimeFromParamLib(Teuchos::RCP<ParamLib> paramLib) {
         "APF: Time is a state but not a parameter, cannot reinitialize it\n");
       Albany::MDArray& time = stateArrays.elemStateArrays[b]["Time"];
       time(0) = paramLib->getRealValue<PHAL::AlbanyTraits::Residual>("Time");
+      PCU_Debug_Print("init esa[%zu][\"Time\"] = %f\n",
+          b, time(0));
     }
     if (stateArrays.elemStateArrays[b].count("Time_old")) {
       Albany::MDArray& oldTime = stateArrays.elemStateArrays[b]["Time_old"];
       oldTime(0) = paramLib->getRealValue<PHAL::AlbanyTraits::Residual>("Time");
+      PCU_Debug_Print("init esa[%zu][\"Time_old\"] = %f\n",
+          b, oldTime(0));
     }
   }
 }
@@ -1495,8 +1502,11 @@ Albany::APFDiscretization::updateMesh(bool shouldTransferIPData,
     meshStruct->nodal_data_base->updateNodalGraph(Teuchos::null);
 
   // Use the parameter library to re-initialize Time state arrays
-  if (Teuchos::nonnull(paramLib))
+  if (Teuchos::nonnull(paramLib)) {
     initTimeFromParamLib(paramLib);
+  } else {
+    std::cout << "paramLib is null !!\n";
+  }
 
   apf::destroyGlobalNumbering(globalNumbering);
   globalNumbering = 0;

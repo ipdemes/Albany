@@ -37,6 +37,7 @@ Time(Teuchos::ParameterList& p) :
   this->addEvaluatedField(deltaTime);
 
   timeName = p.get<std::string>("Time Name")+"_old";;
+  std::cout << "timeName (old time name): " << timeName << '\n';
   this->setName("Time"+PHX::typeAsString<EvalT>());
 }
 
