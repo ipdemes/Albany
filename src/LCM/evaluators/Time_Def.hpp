@@ -10,6 +10,9 @@
 #include "Sacado_ParameterRegistration.hpp"
 #include "Albany_Utils.hpp"
 
+#include <PCU.h>
+#include <sstream>
+
 namespace LCM {
 
 template<typename EvalT, typename Traits>
@@ -52,10 +55,16 @@ template<typename EvalT, typename Traits>
 void Time<EvalT, Traits>::
 evaluateFields(typename Traits::EvalData workset)
 {
+  std::stringstream ss;
+  ss << "Time<" << typeid(EvalT).name() << "> ws " << workset.wsIndex;
   time(0) = workset.current_time;
 
   Albany::MDArray timeOld = (*workset.stateArrayPtr)[timeName];
   deltaTime(0) = time(0) - timeOld(0);
+  ss << " t " << time(0) << " t_o " << timeOld(0) << " dt " << deltaTime(0);
+  ss << '\n';
+  std::string s = ss.str();
+  PCU_Debug_Print("%s", s.c_str());
 }
 
 // **********************************************************************

@@ -49,6 +49,8 @@
 #include "Albany_APFMeshStruct.hpp"
 #endif
 
+#include <PCU.h>
+
 // Global variable that denotes this is the Tpetra executable
 bool TpetraBuild = true;
 const Tpetra::global_size_t INVALID = Teuchos::OrdinalTraits<Tpetra::global_size_t>::invalid ();
@@ -258,6 +260,8 @@ int main(int argc, char *argv[]) {
 #ifdef ALBANY_APF
   Albany::APFMeshStruct::initialize_libraries(&argc, &argv);
 #endif
+  
+  PCU_Debug_Open();
 
   using Teuchos::RCP;
   using Teuchos::rcp;
