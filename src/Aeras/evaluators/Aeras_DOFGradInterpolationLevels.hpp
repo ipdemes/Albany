@@ -60,13 +60,19 @@ private:
 #ifdef ALBANY_KOKKOS_UNDER_DEVELOPMENT
 public:
   typedef Kokkos::View<int***, PHX::Device>::execution_space ExecutionSpace;
+   typedef typename Kokkos::TeamPolicy<>::member_type team_member ;
+
 
   struct DOFGradInterpolationLevels_Tag{};
 
   typedef Kokkos::RangePolicy<ExecutionSpace, DOFGradInterpolationLevels_Tag> DOFGradInterpolationLevels_Policy;
 
+#if 0
   KOKKOS_INLINE_FUNCTION
   void operator() (const DOFGradInterpolationLevels_Tag& tag, const int& i) const;
+#endif
+  KOKKOS_INLINE_FUNCTION
+  void operator() ( const team_member & thread) const;
 
 #endif
 };
@@ -109,13 +115,18 @@ private:
 #ifdef ALBANY_KOKKOS_UNDER_DEVELOPMENT
 public:
   typedef Kokkos::View<int***, PHX::Device>::execution_space ExecutionSpace;
+  typedef typename Kokkos::TeamPolicy<>::member_type team_member ;
 
   struct DOFGradInterpolationLevels_noDeriv_Tag{};
 
   typedef Kokkos::RangePolicy<ExecutionSpace, DOFGradInterpolationLevels_noDeriv_Tag> DOFGradInterpolationLevels_noDeriv_Policy;
 
+#if 0
   KOKKOS_INLINE_FUNCTION
   void operator() (const DOFGradInterpolationLevels_noDeriv_Tag& tag, const int& i) const;
+#endif
+  KOKKOS_INLINE_FUNCTION
+  void operator() ( const team_member & thread) const;
 
 #endif
 };

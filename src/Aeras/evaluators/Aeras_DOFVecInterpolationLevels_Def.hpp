@@ -46,6 +46,7 @@ postRegistrationSetup(typename Traits::SetupData d,
 //**********************************************************************
 // Kokkos kernels
 #ifdef ALBANY_KOKKOS_UNDER_DEVELOPMENT
+#if 0
 template<typename EvalT, typename Traits>
 KOKKOS_INLINE_FUNCTION
 void DOFVecInterpolationLevels<EvalT, Traits>::
@@ -61,6 +62,29 @@ operator() (const DOFVecInterpolationLevels_Tag& tag, const int& cell) const{
     }
   }
 }
+#endif
+template<typename EvalT, typename Traits>
+KOKKOS_INLINE_FUNCTION
+void DOFVecInterpolationLevels<EvalT, Traits>::
+operator() ( const team_member & thread) const{
+  int cell = thread.league_rank();
+  for (int qp=0; qp < numQPs; ++qp) {
+    for (int level=0; level < numLevels; ++level) {
+      for (int dim=0; dim < numDims; ++dim) {
+        ScalarT tsum=0;
+        Kokkos::parallel_reduce(Kokkos::ThreadVectorRange(thread,numNodes),
+               [=] (const int& node, ScalarT & vsum)
+        {
+          vsum+= val_node(cell,node,level,dim) * BF(cell,node,qp);;
+        },tsum);//parallel reduce
+ 
+        val_qp(cell,qp,level,dim)=tsum;
+
+      }//end for
+    }//end for
+   }//end for  
+}
+
 
 #endif
 
@@ -84,7 +108,15 @@ evaluateFields(typename Traits::EvalData workset)
   }
 
 #else
+#if 0
   Kokkos::parallel_for(DOFVecInterpolationLevels_Policy(0,workset.numCells),*this);
+#endif
+  int team_size=1;
+  int num_teams = workset.numCells;
+  int vector_length = 16;
+  const Kokkos::TeamPolicy<> policy( num_teams, team_size , vector_length);
+  Kokkos::parallel_for( policy , *this );
+
 
 #endif
 }

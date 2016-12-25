@@ -56,13 +56,20 @@ private:
 #ifdef ALBANY_KOKKOS_UNDER_DEVELOPMENT
 public:
   typedef Kokkos::View<int***, PHX::Device>::execution_space ExecutionSpace;
+  typedef typename Kokkos::TeamPolicy<>::member_type team_member ;
 
   struct DOFVecInterpolationLevels_Tag{};
 
   typedef Kokkos::RangePolicy<ExecutionSpace, DOFVecInterpolationLevels_Tag> DOFVecInterpolationLevels_Policy;
 
+#if 0
   KOKKOS_INLINE_FUNCTION
   void operator() (const DOFVecInterpolationLevels_Tag& tag, const int& i) const;
+#endif
+  KOKKOS_INLINE_FUNCTION
+  void operator() (const team_member & thread) const;
+
+
 
 #endif
 };

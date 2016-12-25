@@ -57,14 +57,21 @@ private:
 #ifdef ALBANY_KOKKOS_UNDER_DEVELOPMENT
 public:
   typedef Kokkos::View<int***, PHX::Device>::execution_space ExecutionSpace;
+  typedef typename Kokkos::TeamPolicy<>::member_type team_member ;
+  //typedef Kokkos::DefaultExecutionSpace::scratch_memory_space shared_space;
+  //typedef Kokkos::View<int*,shared_space,Kokkos::MemoryUnmanaged> shared_1d_int;
 
   struct XZHydrostatic_KineticEnergy_Tag{};
 
   typedef Kokkos::RangePolicy<ExecutionSpace, XZHydrostatic_KineticEnergy_Tag> XZHydrostatic_KineticEnergy_Policy;
 
+#if 0
   KOKKOS_INLINE_FUNCTION
   void operator() (const XZHydrostatic_KineticEnergy_Tag& tag, const int& i) const;
-
+#endif
+  KOKKOS_INLINE_FUNCTION
+  void operator() (const team_member & thread) const;
+ 
 #endif
 };
 }
