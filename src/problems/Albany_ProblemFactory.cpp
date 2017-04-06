@@ -60,6 +60,7 @@
 
 #ifdef ALBANY_AMP
 #include "AMP/problems/PhaseProblem.hpp"
+#include "AMP/problems/AMPThermoMechanics.hpp"
 #endif
 
 #ifdef ALBANY_ANISO
@@ -85,6 +86,7 @@
 
 #ifdef ALBANY_AERAS
 #include "Aeras/problems/Aeras_ShallowWaterProblem.hpp"
+#include "Aeras/problems/Aeras_ShallowWaterProblemNoAD.hpp"
 #include "Aeras/problems/Aeras_XZScalarAdvectionProblem.hpp"
 #include "Aeras/problems/Aeras_XScalarAdvectionProblem.hpp"
 #include "Aeras/problems/Aeras_XZHydrostaticProblem.hpp"
@@ -305,6 +307,15 @@ Albany::ProblemFactory::create()
   else if (method == "Phase 3D") {
     strategy = rcp(new Albany::PhaseProblem(problemParams, paramLib, 3, commT));
   }
+  else if (method == "AMPThermoMechanics 1D") {
+    strategy = rcp(new Albany::AMPThermoMechanics(problemParams, paramLib, 1, commT));
+  }
+  else if (method == "AMPThermoMechanics 2D") {
+    strategy = rcp(new Albany::AMPThermoMechanics(problemParams, paramLib, 2, commT));
+  }
+  else if (method == "AMPThermoMechanics 3D") {
+    strategy = rcp(new Albany::AMPThermoMechanics(problemParams, paramLib, 3, commT));
+  }
 #endif
 #ifdef ALBANY_ANISO
   else if (method == "ANISO Advection 2D") {
@@ -390,6 +401,9 @@ Albany::ProblemFactory::create()
   }
   else if (method == "Aeras Shallow Water 3D" ) {
     strategy = rcp(new Aeras::ShallowWaterProblem(problemParams, paramLib, 3));
+  }
+  else if (method == "Aeras Shallow Water No AD 3D" ) {
+    strategy = rcp(new Aeras::ShallowWaterProblemNoAD(problemParams, paramLib, 3));
   }
   else if (method == "Aeras XZ Scalar Advection" ) {
     strategy = rcp(new Aeras::XZScalarAdvectionProblem(problemParams, paramLib, 2));

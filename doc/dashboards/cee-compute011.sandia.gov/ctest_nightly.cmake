@@ -54,11 +54,11 @@ else ()
   # around with the settings in this block.
 
   # What to build and test
-  set (DOWNLOAD TRUE)
+  set (DOWNLOAD FALSE)
   # See if we can get away with this for speed, at least until we get onto a
   # machine that can support a lengthy nightly.
-  set (CLEAN_BUILD TRUE)
-  set (BUILD_SCOREC TRUE)
+  set (CLEAN_BUILD FALSE)
+  set (BUILD_SCOREC FALSE)
   set (BUILD_TRILINOS FALSE)
   set (BUILD_PERIDIGM FALSE)
   set (BUILD_ALB32 FALSE)
@@ -374,6 +374,9 @@ set (COMMON_CONFIGURE_OPTIONS
   "-DTrilinos_ENABLE_Amesos2:BOOL=ON"
   "-DTrilinos_ENABLE_Zoltan2:BOOL=ON"
   "-DTrilinos_ENABLE_MueLu:BOOL=ON"
+#
+  "-DTrilinos_ENABLE_STRONG_C_COMPILE_WARNINGS:BOOL=OFF"
+  "-DTrilinos_ENABLE_STRONG_CXX_COMPILE_WARNINGS:BOOL=OFF"
   #
   "-DZoltan_ENABLE_ULONG_IDS:BOOL=ON"
   "-DMDS_ID_TYPE:STRING='long int'"
@@ -458,8 +461,8 @@ set (COMMON_CONFIGURE_OPTIONS
   "-DTrilinos_ENABLE_STKMesh:BOOL=ON"
   "-DTrilinos_ENABLE_STKIO:BOOL=ON"
   "-DTrilinos_ENABLE_STKExp:BOOL=OFF"
-  "-DTrilinos_ENABLE_STKSearch:BOOL=OFF"
-  "-DTrilinos_ENABLE_STKSearchUtil:BOOL=OFF"
+  "-DTrilinos_ENABLE_STKSearch:BOOL=ON"
+  "-DTrilinos_ENABLE_STKSearchUtil:BOOL=ON"
   "-DTrilinos_ENABLE_STKTransfer:BOOL=ON"
   "-DTrilinos_ENABLE_STKUnit_tests:BOOL=OFF"
   "-DTrilinos_ENABLE_STKDoc_tests:BOOL=OFF"
@@ -482,11 +485,11 @@ if (BUILD_TRILINOS)
     "-DTPL_ENABLE_MPI:BOOL=ON"
     "-DMPI_BASE_DIR:PATH=${GCC_MPI_DIR}"
     "-DCMAKE_CXX_COMPILER:STRING=${GCC_MPI_DIR}/bin/mpicxx"
-    "-DCMAKE_CXX_FLAGS:STRING='-O3 -march=native -w -DNDEBUG ${extra_cxx_flags}'"
+    "-DCMAKE_CXX_FLAGS:STRING='-O3 -march=native -DNDEBUG ${extra_cxx_flags}'"
     "-DCMAKE_C_COMPILER:STRING=${GCC_MPI_DIR}/bin/mpicc"
-    "-DCMAKE_C_FLAGS:STRING='-O3 -march=native -w -DNDEBUG'"
+    "-DCMAKE_C_FLAGS:STRING='-O3 -march=native -DNDEBUG'"
     "-DCMAKE_Fortran_COMPILER:STRING=${GCC_MPI_DIR}/bin/mpifort"
-    "-DCMAKE_Fortran_FLAGS:STRING='-O3 -march=native -w -DNDEBUG'"
+    "-DCMAKE_Fortran_FLAGS:STRING='-O3 -march=native -DNDEBUG'"
 #
     "-DTrilinos_EXTRA_LINK_FLAGS='-L${PREFIX_DIR}/lib -lnetcdf -lpnetcdf -lhdf5_hl -lhdf5 -lz -lm -Wl,-rpath,${PREFIX_DIR}/lib'"
     "-DCMAKE_INSTALL_PREFIX:PATH=${CTEST_BINARY_DIRECTORY}/TrilinosInstall"
@@ -513,6 +516,10 @@ if (BUILD_TRILINOS)
     "-DTPL_ENABLE_Zlib:BOOL=ON"
     "-DZlib_INCLUDE_DIRS:PATH=${PREFIX_DIR}/include"
     "-DZlib_LIBRARY_DIRS:PATH=${PREFIX_DIR}/lib"
+#
+    "-DTPL_ENABLE_yaml-cpp:BOOL=ON"
+    "-Dyaml-cpp_INCLUDE_DIRS:PATH=${PREFIX_DIR}/include"
+    "-Dyaml-cpp_LIBRARY_DIRS:PATH=${PREFIX_DIR}/lib"
 #
     "-DTPL_ENABLE_ParMETIS:BOOL=ON"
     "-DParMETIS_INCLUDE_DIRS:PATH=${PREFIX_DIR}/include"
@@ -615,11 +622,11 @@ if (BUILD_TRILINOSCLANG)
     "-DMPI_BASE_DIR:PATH=${PREFIX_DIR}/clang-3.7"
     #
     "-DCMAKE_CXX_COMPILER:STRING=/projects/albany/clang-3.7/bin/mpicxx"
-    "-DCMAKE_CXX_FLAGS:STRING='-Os -w -DNDEBUG ${extra_cxx_flags}'"
+    "-DCMAKE_CXX_FLAGS:STRING='-Os -DNDEBUG ${extra_cxx_flags}'"
     "-DCMAKE_C_COMPILER:STRING=/projects/albany/clang-3.7/bin/mpicc"
-    "-DCMAKE_C_FLAGS:STRING='-Os -w -DNDEBUG'"
+    "-DCMAKE_C_FLAGS:STRING='-Os -DNDEBUG'"
     "-DCMAKE_Fortran_COMPILER:STRING=/projects/albany/clang-3.7/bin/mpifort"
-    "-DCMAKE_Fortran_FLAGS:STRING='-Os -w -DNDEBUG'"
+    "-DCMAKE_Fortran_FLAGS:STRING='-Os -DNDEBUG'"
     "-DTrilinos_ENABLE_SCOREC:BOOL=ON"
     "-DMDS_ID_TYPE:STRING='long long int'"
     "-DSCOREC_DISABLE_STRONG_WARNINGS:BOOL=ON"
@@ -651,6 +658,10 @@ if (BUILD_TRILINOSCLANG)
   "-DTPL_ENABLE_Zlib:BOOL=ON"
   "-DZlib_INCLUDE_DIRS:PATH=${PREFIX_DIR}/clang-3.7/include"
   "-DZlib_LIBRARY_DIRS:PATH=${PREFIX_DIR}/clang-3.7/lib"
+  #
+  "-DTPL_ENABLE_yaml-cpp:BOOL=ON"
+  "-Dyaml-cpp_INCLUDE_DIRS:PATH=${PREFIX_DIR}/clang-3.7/include"
+  "-Dyaml-cpp_LIBRARY_DIRS:PATH=${PREFIX_DIR}/clang-3.7/lib"
   #
   "-DTPL_ENABLE_ParMETIS:BOOL=ON"
   "-DParMETIS_INCLUDE_DIRS:PATH=${PREFIX_DIR}/clang-3.7/include"

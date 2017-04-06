@@ -8,9 +8,6 @@
 #include "MiniNonlinearSolver.h"
 #include "MiniSolvers.h"
 
-// Why is this needed?
-bool TpetraBuild = false;
-
 int
 main(int ac, char * av[])
 {

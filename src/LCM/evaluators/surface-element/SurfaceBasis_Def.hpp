@@ -25,7 +25,7 @@ SurfaceBasis(
         dl->vertices_vector),
     cubature_(p.get<Teuchos::RCP<Intrepid2::Cubature<PHX::Device>>>("Cubature")),
     intrepid_basis_(
-        p.get<Teuchos::RCP<Intrepid2::Basis<PHX::Device, RealType, RealType> > >("Intrepid2 Basis")),
+        p.get<Teuchos::RCP<Intrepid2::Basis<PHX::Device, RealType, RealType>>>("Intrepid2 Basis")),
     ref_basis_(p.get<std::string>("Reference Basis Name"), dl->qp_tensor),
     ref_area_(p.get<std::string>("Reference Area Name"), dl->qp_scalar),
     ref_dual_basis_(
@@ -46,12 +46,12 @@ SurfaceBasis(
     need_current_basis_ = true;
 
     // grab the current coords
-    current_coords_ =  PHX::MDField<ScalarT, Cell, Vertex, Dim>(
+    current_coords_ =  decltype(current_coords_)(
         p.get<std::string>("Current Coordinates Name"),
         dl->node_vector);
 
     // set up the current basis
-    current_basis_ =  PHX::MDField<ScalarT, Cell, QuadPoint, Dim, Dim>(
+    current_basis_ =  decltype(current_basis_)(
         p.get<std::string>("Current Basis Name"),
         dl->qp_tensor);
 
@@ -172,7 +172,7 @@ template<typename ST>
 void
 SurfaceBasis<EvalT, Traits>::
 computeMidplaneCoords(
-    PHX::MDField<ST, Cell, Vertex, Dim> const coords,
+    PHX::MDField<const ST, Cell, Vertex, Dim> const coords,
     Kokkos::DynRankView<ST, PHX::Device> & midplane_coords)
 {
   for (int cell(0); cell < midplane_coords.dimension(0); ++cell) {

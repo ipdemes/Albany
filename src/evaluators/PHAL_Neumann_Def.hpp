@@ -107,9 +107,8 @@ NeumannBase(const Teuchos::ParameterList& p) :
                              std::endl << "Error: \"Robin\" Neumann boundary conditions "
                              << "only supported when the DOF is not a vector" << std::endl);
 
-       PHX::MDField<ScalarT,Cell,Node> tmp(p.get<std::string>("DOF Name"),
+       dof = decltype(dof)(p.get<std::string>("DOF Name"),
            p.get<Teuchos::RCP<PHX::DataLayout> >("DOF Data Layout"));
-       dof = tmp;
        this->addDependentField(dof);
      }
   }
@@ -171,15 +170,14 @@ NeumannBase(const Teuchos::ParameterList& p) :
         std::stringstream ss; ss << name << "[" << i << "]";
         this->registerSacadoParameter(ss.str(), paramLib);
       }
-       PHX::MDField<ScalarT,Cell,Node,VecDim> tmp(p.get<std::string>("DOF Name"),
+       dofVec = decltype(dofVec)(p.get<std::string>("DOF Name"),
            p.get<Teuchos::RCP<PHX::DataLayout> >("DOF Data Layout"));
-       dofVec = tmp;
 #ifdef ALBANY_FELIX
-      beta_field = PHX::MDField<ParamScalarT,Cell,Node>(
+      beta_field = decltype(beta_field)(
         p.get<std::string>("Beta Field Name"), dl->node_scalar);
-      thickness_field = PHX::MDField<ParamScalarT,Cell,Node>(
+      thickness_field = decltype(thickness_field)(
         p.get<std::string>("thickness Field Name"), dl->node_scalar);
-      bedTopo_field = PHX::MDField<ParamScalarT,Cell,Node>(
+      bedTopo_field = decltype(bedTopo_field)(
         p.get<std::string>("BedTopo Field Name"), dl->node_scalar);
 #endif
 
@@ -240,12 +238,11 @@ NeumannBase(const Teuchos::ParameterList& p) :
         std::stringstream ss; ss << name << "[" << i << "]";
         this->registerSacadoParameter(ss.str(), paramLib);
       }
-      PHX::MDField<ScalarT,Cell,Node,VecDim> tmp(p.get<std::string>("DOF Name"),
+      dofVec = decltype(dofVec)(p.get<std::string>("DOF Name"),
           p.get<Teuchos::RCP<PHX::DataLayout> >("DOF Data Layout"));
-      dofVec = tmp;
       this->addDependentField(dofVec);
 #ifdef ALBANY_FELIX
-      beta_field = PHX::MDField<ParamScalarT,Cell,Node>(
+      beta_field = decltype(beta_field)(
                     p.get<std::string>("Beta Field Name"), dl->node_scalar);
       this->addDependentField(beta_field);
 #endif
@@ -279,15 +276,14 @@ NeumannBase(const Teuchos::ParameterList& p) :
         std::stringstream ss; ss << name << "[" << i << "]";
         this->registerSacadoParameter(ss.str(), paramLib);
       }
-        PHX::MDField<ScalarT,Cell,Node,VecDim> tmp(p.get<std::string>("DOF Name"),
+        dofVec = decltype(dofVec)(p.get<std::string>("DOF Name"),
              p.get<Teuchos::RCP<PHX::DataLayout> >("DOF Data Layout"));
-        dofVec = tmp;
         this->addDependentField(dofVec);
 #ifdef ALBANY_FELIX
-        thickness_field = PHX::MDField<ParamScalarT,Cell,Node>(
-                           p.get<std::string>("thickness Field Name"), dl->node_scalar);
-        elevation_field = PHX::MDField<ParamScalarT,Cell,Node>(
-                           p.get<std::string>("Elevation Field Name"), dl->node_scalar);
+        thickness_field = decltype(thickness_field)(
+          p.get<std::string>("thickness Field Name"), dl->node_scalar);
+        elevation_field = decltype(elevation_field)(
+          p.get<std::string>("Elevation Field Name"), dl->node_scalar);
 
         this->addDependentField(thickness_field);
         this->addDependentField(elevation_field);
@@ -1084,8 +1080,10 @@ calc_dudn_basal(Kokkos::DynRankView<ScalarT, PHX::Device> & qp_data_returned,
   const ScalarT& beta2 = robin_vals[3];
   const ScalarT& beta3 = robin_vals[4];
 
-  Kokkos::DynRankView<MeshScalarT, PHX::Device> side_normals("BBB", numCells, numPoints, cellDims);
-  Kokkos::DynRankView<MeshScalarT, PHX::Device> normal_lengths("BBB", numCells, numPoints);
+
+  using DynRankViewMeshScalarT = Kokkos::DynRankView<MeshScalarT, PHX::Device>;
+  DynRankViewMeshScalarT side_normals = Kokkos::createDynRankViewWithType<DynRankViewMeshScalarT>(side_normals_buffer, side_normals_buffer.data(), numCells, numPoints, cellDims);
+  DynRankViewMeshScalarT normal_lengths = Kokkos::createDynRankViewWithType<DynRankViewMeshScalarT>(normal_lengths_buffer, normal_lengths_buffer.data(), numCells, numPoints);
 
   // for this side in the reference cell, get the components of the normal direction vector
   Intrepid2::CellTools<PHX::Device>::getPhysicalSideNormals(side_normals, jacobian_side_refcell,
@@ -1422,8 +1420,9 @@ calc_dudn_basal_scalar_field(Kokkos::DynRankView<ScalarT, PHX::Device> & qp_data
 
   const ScalarT& scale = robin_vals[0];
 
-  Kokkos::DynRankView<MeshScalarT, PHX::Device> side_normals("side_normals", numCells, numPoints, cellDims);
-  Kokkos::DynRankView<MeshScalarT, PHX::Device> normal_lengths("normal_lengths", numCells, numPoints);
+  using DynRankViewMeshScalarT = Kokkos::DynRankView<MeshScalarT, PHX::Device>;
+  DynRankViewMeshScalarT side_normals = Kokkos::createDynRankViewWithType<DynRankViewMeshScalarT>(side_normals_buffer, side_normals_buffer.data(), numCells, numPoints, cellDims);
+  DynRankViewMeshScalarT normal_lengths = Kokkos::createDynRankViewWithType<DynRankViewMeshScalarT>(normal_lengths_buffer, normal_lengths_buffer.data(), numCells, numPoints);
 
   // for this side in the reference cell, get the components of the normal direction vector
   Intrepid2::CellTools<PHX::Device>::getPhysicalSideNormals(side_normals, jacobian_side_refcell,

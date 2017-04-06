@@ -28,6 +28,7 @@ public:
 	
   using BaseKernel = ParallelKernel<EvalT, Traits>;
   using ScalarField = typename BaseKernel::ScalarField;
+  using ConstScalarField = typename BaseKernel::ConstScalarField;
   using Workset = typename BaseKernel::Workset;
 	
   // Dimension of problem, e.g., 2 -> 2D, 3 -> 3D
@@ -70,7 +71,7 @@ public:
 
   void
   init(Workset & workset,
-       FieldMap<ScalarT> & dep_fields,
+       FieldMap<const ScalarT> & dep_fields,
        FieldMap<ScalarT> & eval_fields);
 
   ///
@@ -152,6 +153,10 @@ private:
   int
   num_slip_;
 
+  // Index in global element numbering
+  int
+  index_element_;
+
   /// Unrotated elasticity tensor
   minitensor::Tensor4<ScalarT, CP::MAX_DIM>
   C_unrotated_;
@@ -168,6 +173,10 @@ private:
   bool
   read_orientations_from_mesh_;
 
+  /// Flag indicating failure in model calculation
+  bool
+  failed_;
+
   ///
   /// Solution options
   ///
@@ -177,8 +186,8 @@ private:
   CP::ResidualType
   residual_type_;
 
-  bool
-  apply_slip_predictor_;
+  CP::PredictorSlip
+  predictor_slip_;
   
   minitensor::StepType
   step_type_;
@@ -203,13 +212,13 @@ private:
   ///
   /// Dependent MDFields
   ///
-  ScalarField
+  ConstScalarField
   def_grad_;
 
-  ScalarField
+  ConstScalarField
   time_;
 
-  ScalarField
+  ConstScalarField
   delta_time_;
 
   ///
@@ -229,6 +238,9 @@ private:
   
   ScalarField
   velocity_gradient_;
+  
+  ScalarField
+  velocity_gradient_plastic_;
   
   ScalarField
   source_;
@@ -279,6 +291,9 @@ private:
   L_string_ = field_name_map_["Velocity_Gradient"];
 
   std::string const
+  Lp_string_ = field_name_map_["Velocity_Gradient_Plastic"];
+
+  std::string const
   residual_string_ = field_name_map_["CP_Residual"];
 
   std::string const
@@ -305,6 +320,9 @@ private:
   Albany::MDArray
   previous_plastic_deformation_;
 
+  Albany::MDArray
+  previous_defgrad_;
+
   RealType
   dt_;
 
@@ -320,6 +338,6 @@ public:
       const Teuchos::RCP<Albany::Layouts>& dl);
 };
 
-}
+} // namespace LCM
 
 #endif

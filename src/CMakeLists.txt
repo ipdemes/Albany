@@ -1,6 +1,6 @@
 ##*****************************************************************//
 ##    Albany 3.0:  Copyright 2016 Sandia Corporation               //
-##    This Software is released under the BSD license detailed     //
+#    This Software is released under the BSD license detailed     //
 ##    in the file "license.txt" in the top-level Albany directory  //
 ##*****************************************************************//
 
@@ -46,9 +46,11 @@ IF(ALBANY_EPETRA)
     Albany_NOXObserver.cpp
     Albany_NOXStatelessObserver.cpp
     Albany_PiroObserver.cpp
-    Albany_RythmosObserver.cpp
     Albany_SaveEigenData.cpp
   )
+  IF(ALBANY_RYTHMOS)
+    SET(SOURCES ${SOURCES} Albany_RythmosObserver.cpp)
+  ENDIF()
 ENDIF()
 
 SET(HEADERS
@@ -88,9 +90,11 @@ IF(ALBANY_EPETRA)
     Albany_NOXStatelessObserver.hpp
     Albany_ObserverFactory.hpp
     Albany_PiroObserver.hpp
-    Albany_RythmosObserver.hpp
     Petra_Converters.hpp
   )
+  IF(ALBANY_RYTHMOS)
+    SET(SOURCES ${SOURCES} Albany_RythmosObserver.hpp)
+  ENDIF()
 ENDIF()
 
 #utility
@@ -119,6 +123,13 @@ SET(HEADERS ${HEADERS}
   utility/math/TensorDetail.hpp
   utility/math/TensorImpl.hpp
   )
+
+IF(ALBANY_YAML)
+  add_executable(xml2yaml utility/xml2yaml.cpp)
+  add_executable(yaml2xml utility/yaml2xml.cpp)
+  target_link_libraries(xml2yaml teuchosparameterlist)
+  target_link_libraries(yaml2xml teuchosparameterlist)
+ENDIF()
 
 #problems
 SET(SOURCES ${SOURCES}
@@ -1003,6 +1014,8 @@ ENDIF()
 IF (ALBANY_LCM)
   add_subdirectory(LCM)
   SET(ALBANY_LIBRARIES ${ALBANY_LIBRARIES} LCM)
+  add_executable(SchwarzAlternating Main_Alternating.cpp)
+  SET (ALBANY_EXECUTABLES ${ALBANY_EXECUTABLES} SchwarzAlternating)
 ENDIF()
 
 # Can remove this once rebalance is in Trilnos again
@@ -1013,11 +1026,7 @@ endif()
 # Repeat libraries twice to catch circular dependencies
 SET(ALBANY_LIBRARIES ${ALBANY_LIBRARIES} ${ALBANY_LIBRARIES} ${ALBANY_LIBRARIES})
 
-# this needs to come after the definition of ALBANY_LIBRARIES
 IF (ALBANY_CTM)
-  # CTM is inteded to be a demonstration of using Albany as a library, not
-  # adding a library to Albany. Thus, we do not set an additional library in
-  # the ALBANY_LIBRARIES list here.
   add_subdirectory(CTM)
 ENDIF()
 

@@ -161,14 +161,14 @@ protected:
 
   // Input:
   //! Coordinate vector at vertices
-  PHX::MDField<MeshScalarT,Cell,Vertex,Dim> coordVec;
-  PHX::MDField<ScalarT,Cell,Node> dof;
-  PHX::MDField<ScalarT,Cell,Node,VecDim> dofVec;
-  PHX::MDField<ParamScalarT,Cell,Node> beta_field;
-  PHX::MDField<ParamScalarT,Cell,Node> roughness_field;
-  PHX::MDField<ParamScalarT,Cell,Node> thickness_field;
-  PHX::MDField<ParamScalarT,Cell,Node> elevation_field;
-  PHX::MDField<ParamScalarT,Cell,Node> bedTopo_field;
+  PHX::MDField<const MeshScalarT,Cell,Vertex,Dim> coordVec;
+  PHX::MDField<const ScalarT,Cell,Node> dof;
+  PHX::MDField<const ScalarT,Cell,Node,VecDim> dofVec;
+  PHX::MDField<const ParamScalarT,Cell,Node> beta_field;
+  PHX::MDField<const ParamScalarT,Cell,Node> roughness_field;
+  PHX::MDField<const ParamScalarT,Cell,Node> thickness_field;
+  PHX::MDField<const ParamScalarT,Cell,Node> elevation_field;
+  PHX::MDField<const ParamScalarT,Cell,Node> bedTopo_field;
   Teuchos::RCP<shards::CellTopology> cellType;
   Teuchos::ArrayRCP<Teuchos::RCP<shards::CellTopology> > sideType;
   Teuchos::RCP<Intrepid2::Cubature<PHX::Device> > cubatureCell;
@@ -275,7 +275,7 @@ public:
  Teuchos::ArrayRCP<ST> fT_nonconstView;
  Teuchos::RCP<Tpetra_CrsMatrix> JacT;
 
- typedef typename Tpetra_CrsMatrix::k_local_matrix_type  LocalMatrixType;
+ typedef typename Tpetra_CrsMatrix::local_matrix_type  LocalMatrixType;
  LocalMatrixType jacobian;
  Kokkos::View<int***, PHX::Device> Index;
  bool is_adjoint;

@@ -144,7 +144,7 @@ private:
   range_map_;
 
   Teuchos::RCP<Teuchos_Comm const>
-  commT_;
+  comm_;
 
   bool
   b_use_transpose_;
@@ -156,5 +156,5 @@ private:
   n_models_;
 };
 
-}
+} //namespace LCM
 #endif // LCM_SchwarzBoundaryJacobian_hpp

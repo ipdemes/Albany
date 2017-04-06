@@ -52,7 +52,8 @@ CP::HardeningLawFactory<NumDimT, NumSlipT>::HardeningLawFactory()
 template<minitensor::Index NumDimT, minitensor::Index NumSlipT>
 template<typename ArgT>
 utility::StaticPointer<CP::HardeningLawBase<NumDimT, NumSlipT, ArgT>>
-CP::HardeningLawFactory<NumDimT, NumSlipT>::createHardeningLaw(HardeningLawType type_hardening_law) const
+CP::HardeningLawFactory<NumDimT, NumSlipT>::createHardeningLaw(
+    HardeningLawType type_hardening_law) const
 {
   switch (type_hardening_law) {
 
@@ -145,11 +146,12 @@ harden(
   modulus_hardening = phardening_params->getParameter(Params::MODULUS_HARDENING);
 
   auto const
-  hardness_initial = phardening_params->getParameter(Params::STATE_HARDENING_INITIAL);
+  hardness_initial = phardening_params->getParameter(
+      Params::STATE_HARDENING_INITIAL);
 
   if (modulus_recovery > 0.0)
   {
-    for (int ss_index(0); ss_index < num_slip_sys; ++ss_index)
+    for (minitensor::Index ss_index(0); ss_index < num_slip_sys; ++ss_index)
     {
       auto const
       ss_index_global = slip_family.slip_system_indices_(ss_index);
@@ -167,13 +169,13 @@ harden(
   }
   else
   {
-    for (int ss_index(0); ss_index < num_slip_sys; ++ss_index)
+    for (minitensor::Index ss_index(0); ss_index < num_slip_sys; ++ss_index)
     {
       auto const
       ss_index_global = slip_family.slip_system_indices_(ss_index);
 
-      state_hardening_np1[ss_index_global] = 
-        state_hardening_n[ss_index_global] + modulus_hardening * dt * driver_hardening[ss_index];
+      state_hardening_np1[ss_index_global] = state_hardening_n[ss_index_global] + 
+          modulus_hardening * dt * driver_hardening[ss_index];
 
       slip_resistance[ss_index_global] = state_hardening_np1[ss_index_global];
     }
@@ -195,12 +197,12 @@ createLatentMatrix(
   slip_family.latent_matrix_.set_dimension(slip_family.num_slip_sys_);
   slip_family.latent_matrix_.fill(minitensor::ZEROS);
 
-  for (int ss_index_i(0); ss_index_i < slip_family.num_slip_sys_; ++ss_index_i) {
+  for (minitensor::Index ss_index_i(0); ss_index_i < slip_family.num_slip_sys_; ++ss_index_i) {
 
     auto const
     slip_system_i = slip_systems[slip_family.slip_system_indices_[ss_index_i]];
 
-    for (int ss_index_j(0); ss_index_j < slip_family.num_slip_sys_; ++ss_index_j) {
+    for (minitensor::Index ss_index_j(0); ss_index_j < slip_family.num_slip_sys_; ++ss_index_j) {
 
       auto const
       slip_system_j = slip_systems[slip_family.slip_system_indices_[ss_index_j]];
@@ -238,7 +240,7 @@ harden(
   minitensor::Vector<ArgT, NumSlipT>
   rate_slip_abs(num_slip_sys);
 
-  for (int ss_index(0); ss_index < num_slip_sys; ++ss_index)
+  for (minitensor::Index ss_index(0); ss_index < num_slip_sys; ++ss_index)
   {
     auto const
     ss_index_global = slip_family.slip_system_indices_(ss_index);
@@ -249,7 +251,7 @@ harden(
     rate_slip_abs(ss_index) = std::fabs(slip_rate);
   }
 
-  minitensor::Vector<ArgT, NumSlipT> const 
+  minitensor::Vector<ArgT, NumSlipT> const
   driver_hardening = 2.0 * slip_family.latent_matrix_ * rate_slip_abs;
 
   ArgT
@@ -262,21 +264,25 @@ harden(
   param_map = phardening_params->param_map_;
 
   auto const
-  stress_saturation_initial = phardening_params->getParameter(Params::STRESS_SATURATION_INITIAL);
+  stress_saturation_initial = phardening_params->getParameter(
+      Params::STRESS_SATURATION_INITIAL);
 
   auto const
-  rate_slip_reference = phardening_params->getParameter(Params::RATE_SLIP_REFERENCE);
+  rate_slip_reference = phardening_params->getParameter(
+      Params::RATE_SLIP_REFERENCE);
 
   auto const
-  exponent_saturation = phardening_params->getParameter(Params::EXPONENT_SATURATION);
+  exponent_saturation = phardening_params->getParameter(
+      Params::EXPONENT_SATURATION);
 
   auto const
   rate_hardening = phardening_params->getParameter(Params::RATE_HARDENING);
 
   auto const
-  resistance_slip_initial = phardening_params->getParameter(Params::STATE_HARDENING_INITIAL);
+  resistance_slip_initial = phardening_params->getParameter(
+      Params::STATE_HARDENING_INITIAL);
 
-  for (int ss_index(0); ss_index < num_slip_sys; ++ss_index)
+  for (minitensor::Index ss_index(0); ss_index < num_slip_sys; ++ss_index)
   {
     auto const &
     ss_index_global = slip_family.slip_system_indices_[ss_index];
@@ -289,20 +295,31 @@ harden(
         effective_slip_rate / rate_slip_reference, exponent_saturation);
     }
 
-    slip_resistance[ss_index_global] = state_hardening_np1[ss_index_global];
+    ArgT &
+    state_hard = state_hardening_np1[ss_index_global];
+
+    slip_resistance[ss_index_global] = state_hard;
+
+    ArgT
+    ratio_hardening{0.0};
+
+    // if (state_hardening_np1[ss_index_global] < stress_saturation)
+    // {
+      ratio_hardening = (stress_saturation - state_hard) /
+        (stress_saturation - resistance_slip_initial);
+    // }
 
     // if (driver_hardening[ss_index] !=0 )
     // {
-      state_hardening_np1[ss_index_global] = state_hardening_n[ss_index_global] +
-        dt * rate_hardening * driver_hardening[ss_index] *
-        (stress_saturation - state_hardening_np1[ss_index_global]) / 
-        (stress_saturation - resistance_slip_initial);
+    state_hard = state_hardening_n[ss_index_global] +
+      dt * rate_hardening * driver_hardening[ss_index] * ratio_hardening;
+
     // }
     // else
     // {
     //   state_hardening_np1[ss_index_global] = state_hardening_n[ss_index_global];
     // }
-  } 
+  }
 
   return;
 }
@@ -323,7 +340,7 @@ createLatentMatrix(
   slip_family.latent_matrix_.set_dimension(slip_family.num_slip_sys_);
   slip_family.latent_matrix_.fill(minitensor::ZEROS);
 
-  for (int ss_index_i(0); ss_index_i < slip_family.num_slip_sys_; ++ss_index_i)
+  for (minitensor::Index ss_index_i(0); ss_index_i < slip_family.num_slip_sys_; ++ss_index_i)
   {
     auto const &
     slip_system_i = slip_systems[slip_family.slip_system_indices_[ss_index_i]];
@@ -333,7 +350,7 @@ createLatentMatrix(
 
     normal_i = slip_system_i.n_;
 
-    for (int ss_index_j(0); ss_index_j < slip_family.num_slip_sys_; ++ss_index_j)
+    for (minitensor::Index ss_index_j(0); ss_index_j < slip_family.num_slip_sys_; ++ss_index_j)
     {
       auto const &
       slip_system_j = slip_systems[slip_family.slip_system_indices_[ss_index_j]];
@@ -378,15 +395,29 @@ harden(
   //
   // Compute the effective dislocation density at step n
   //
+  bool dd_negative = false;
+  for (int ss_index_i(0); ss_index_i < num_slip_sys; ++ss_index_i)
+  {
+    if (state_hardening_np1[ss_index_i] < 0.0)
+    {
+      dd_negative = true;
+      // std::cout << state_hardening_np1;
+    }
+  }
+  if (dd_negative)
+  {
+      std::cout << "Warning: Dislocation density at np1 is negative" << std::endl;
+  }
+
   minitensor::Vector<ArgT, NumSlipT>
   densities_forest = slip_family.latent_matrix_ * state_hardening_np1;
 
   minitensor::Tensor<RealType, NumSlipT>
   aux_matrix(num_slip_sys);
 
-  for (int ss_index_i(0); ss_index_i < num_slip_sys; ++ss_index_i)
+  for (minitensor::Index ss_index_i(0); ss_index_i < num_slip_sys; ++ss_index_i)
   {
-    for (int ss_index_j(0); ss_index_j < num_slip_sys; ++ss_index_j)
+    for (minitensor::Index ss_index_j(0); ss_index_j < num_slip_sys; ++ss_index_j)
     {
       aux_matrix(ss_index_i, ss_index_j) =
           std::sqrt(1.0 - std::pow(slip_family.latent_matrix_(ss_index_i, ss_index_j), 2));
@@ -409,7 +440,8 @@ harden(
   factor_annihilation = phardening_params->getParameter(Params::FACTOR_ANNIHILATION);
 
   RealType const
-  factor_geometry_dislocation = phardening_params->getParameter(Params::FACTOR_GEOMETRY_DISLOCATION);
+  factor_geometry_dislocation = phardening_params->getParameter(
+      Params::FACTOR_GEOMETRY_DISLOCATION);
 
   RealType const
   modulus_shear = phardening_params->getParameter(Params::MODULUS_SHEAR);
@@ -417,7 +449,7 @@ harden(
   RealType const
   magnitude_burgers = phardening_params->getParameter(Params::MAGNITUDE_BURGERS);
 
-  for (int ss_index(0); ss_index < num_slip_sys; ++ss_index)
+  for (minitensor::Index ss_index(0); ss_index < num_slip_sys; ++ss_index)
   {
     auto const
     ss_index_global = slip_family.slip_system_indices_[ss_index];
@@ -428,29 +460,36 @@ harden(
     ArgT const
     annihilation = factor_annihilation * state_hardening_np1[ss_index_global];
 
-    // if (generation > annihilation)
-    // {
-    state_hardening_np1[ss_index_global] = state_hardening_n[ss_index_global] + 
-        dt * (generation - annihilation) * std::abs(rate_slip[ss_index_global]);
-    // }
-    
+    ArgT
+    driver_hardening;
+
+    if (generation > annihilation)
+    {
+      driver_hardening = generation - annihilation;
+    }
+    else
+    {
+      driver_hardening = 0.0;
+    }
+
+    state_hardening_np1[ss_index_global] = state_hardening_n[ss_index_global] +
+      dt * driver_hardening * std::abs(rate_slip[ss_index_global]);
   }
-  
+
   minitensor::Vector<ArgT, NumSlipT> const
   densities_parallel = aux_matrix * state_hardening_np1;
-    
+
   for (int ss_index(0); ss_index < num_slip_sys; ++ss_index)
   {
 
     auto const
-    ss_index_global = slip_family.slip_system_indices_[ss_index];    
+    ss_index_global = slip_family.slip_system_indices_[ss_index];
 
     // Compute the slip resistance
     slip_resistance[ss_index_global] = 
         factor_geometry_dislocation * modulus_shear * magnitude_burgers *
         std::sqrt(densities_parallel[ss_index]);
   }
-  
 }
 
 //
@@ -483,14 +522,14 @@ harden(
   minitensor::Vector<RealType, NumSlipT> const & state_hardening_n,
   minitensor::Vector<ArgT, NumSlipT> & state_hardening_np1,
   minitensor::Vector<ArgT, NumSlipT> & slip_resistance)
-{  
+{
   minitensor::Index const
   num_slip_sys = slip_family.num_slip_sys_;
 
   auto const
   slip_system_indices = slip_family.slip_system_indices_;
 
-  for (int ss_index(0); ss_index < num_slip_sys; ++ss_index)
+  for (minitensor::Index ss_index(0); ss_index < num_slip_sys; ++ss_index)
   {
     auto const
     ss_index_global = slip_system_indices[ss_index];

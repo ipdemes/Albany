@@ -12,7 +12,16 @@ namespace CP
 static constexpr RealType
 MACHINE_EPS = std::numeric_limits<RealType>::epsilon();
 
-static constexpr minitensor::Index 
+static constexpr RealType
+TINY = std::numeric_limits<RealType>::min();
+
+static constexpr RealType
+HUGE_ = std::numeric_limits<RealType>::max();
+
+static const RealType
+LOG_HUGE = std::log(HUGE_);
+
+static constexpr minitensor::Index
 MAX_DIM = 3;
 
 static constexpr minitensor::Index
@@ -44,6 +53,14 @@ enum class ResidualType
   SLIP_HARDNESS = 2
 };
 
+enum class PredictorSlip
+{
+  UNDEFINED = 0,
+  NONE = 1,
+  RATE = 2,
+  SOLVE = 3
+};
+
 struct FlowParameterBase;
 
 template<minitensor::Index NumDimT, minitensor::Index NumSlipT>
@@ -54,6 +71,6 @@ struct SlipSystem;
 
 template<minitensor::Index NumDimT, minitensor::Index NumSlipT>
 struct SlipFamily;
-}
+} //namespace CP
 
 #endif

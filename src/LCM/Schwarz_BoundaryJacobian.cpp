@@ -3,15 +3,18 @@
 //    This Software is released under the BSD license detailed     //
 //    in the file "license.txt" in the top-level Albany directory  //
 //*****************************************************************//
+#include "Albany_GenericSTKMeshStruct.hpp"
+#include "Albany_STKDiscretization.hpp"
+#include "Albany_Utils.hpp"
 #include "Schwarz_BoundaryJacobian.hpp"
 #include "Teuchos_ParameterListExceptions.hpp"
 #include "Teuchos_TestForException.hpp"
 
-#include "Albany_GenericSTKMeshStruct.hpp"
-#include "Albany_STKDiscretization.hpp"
-#include "Albany_Utils.hpp"
+namespace LCM {
 
-LCM::
+//
+//
+//
 Schwarz_BoundaryJacobian::
 Schwarz_BoundaryJacobian(
     Teuchos::RCP<Teuchos_Comm const> const & comm,
@@ -19,7 +22,7 @@ Schwarz_BoundaryJacobian(
     Teuchos::Array<Teuchos::RCP<Tpetra_CrsMatrix>> jacs,
     int const this_app_index,
     int const coupled_app_index) :
-        commT_(comm),
+        comm_(comm),
         coupled_apps_(ca),
         jacs_(jacs),
         this_app_index_(this_app_index),
@@ -28,29 +31,35 @@ Schwarz_BoundaryJacobian(
         b_initialized_(false),
         n_models_(0)
 {
-  assert(0 <= this_app_index && this_app_index < ca.size());
-  assert(0 <= coupled_app_index && coupled_app_index < ca.size());
+  ALBANY_EXPECT(0 <= this_app_index && this_app_index < ca.size());
+  ALBANY_EXPECT(0 <= coupled_app_index && coupled_app_index < ca.size());
   domain_map_ = ca[coupled_app_index]->getMapT();
   range_map_ = ca[this_app_index]->getMapT();
 }
 
-LCM::
+//
+//
+//
 Schwarz_BoundaryJacobian::
 ~Schwarz_BoundaryJacobian()
 {
+  return;
 }
 
+//
 // Initialize the operator with everything needed to apply it
+//
 void
-LCM::
 Schwarz_BoundaryJacobian::
 initialize()
 {
+  return;
 }
 
+//
 // Returns explicit matrix representation of operator if available.
+//
 Teuchos::RCP<Tpetra_CrsMatrix>
-LCM::
 Schwarz_BoundaryJacobian::
 getExplicitOperator() const
 {
@@ -71,10 +80,11 @@ getExplicitOperator() const
   return K;
 }
 
+//
 // Returns the result of a Tpetra_Operator applied to a
 // Tpetra_MultiVector X in Y.
+//
 void
-LCM::
 Schwarz_BoundaryJacobian::
 apply(
     Tpetra_MultiVector const & X,
@@ -88,3 +98,5 @@ apply(
 
   Y.putScalar(zero);
 }
+
+} //namespace LCM

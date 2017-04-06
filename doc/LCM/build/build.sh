@@ -1,8 +1,8 @@
 #!/bin/bash
 
-source ./env-single.sh
-
 cd "$LCM_DIR"
+
+source ./env-single.sh
 
 if [ -f "$STATUS_LOG" ]; then
     rm "$STATUS_LOG" -f
@@ -90,9 +90,6 @@ case "$SCRIPT_NAME" in
 	        if [ -e "$PACKAGE_DIR/DataTransferKit" ]; then
                     cp -p "$DTK_FRAG" "$BUILD_DIR"
 	        fi
-	        if [ -e "$PACKAGE_DIR/tempus" ]; then
-                    cp -p "$TEMPUS_FRAG" "$BUILD_DIR"
-	        fi
 		;;
 	    *)
 		;;
@@ -100,7 +97,6 @@ case "$SCRIPT_NAME" in
 	cd "$BUILD_DIR"
         # Add DTK fragment to Trilinos config script and disable ETI as
         # it is not supported for DTK due to incompatible Global Index types.
-        # Also add tempus fragment if needed.
 	case "$PACKAGE" in
 	    trilinos)
                 # First build extra repos string
@@ -112,18 +108,6 @@ case "$SCRIPT_NAME" in
                         ER="$ER,DataTransferKit"
                     fi
                 fi
-                #
-                # Disable this temporarily because for now Tempus
-                # is considered part of Trilinos as a hack while it
-                # gets copyright.
-                #
-	        #if [ -e "$PACKAGE_DIR/tempus" ]; then
-                #    if [ -z $ER ]; then
-                #        ER="tempus"
-                #    else
-                #        ER="$ER,tempus"
-                #    fi
-                #fi
                 if [ ! -z $ER ]; then
                     TER=" -D Trilinos_EXTRA_REPOSITORIES:STRING=\"$ER\" \\"
                     sed -i -e "/lcm_package_dir/d" "$CONFIG_FILE"
@@ -139,12 +123,6 @@ case "$SCRIPT_NAME" in
                     mv "$TMP_FILE" "$CONFIG_FILE"
                     chmod 0755 "$CONFIG_FILE"
                     sed -i -e "s|$ETION|$ETIOFF|g;" "$CONFIG_FILE"
-	        fi
-	        if [ -e "$PACKAGE_DIR/tempus" ]; then
-                    TMP_FILE="/tmp/_TMP_FILE_"
-                    cat "$CONFIG_FILE" "$TEMPUS_FRAG" > "$TMP_FILE"
-                    mv "$TMP_FILE" "$CONFIG_FILE"
-                    chmod 0755 "$CONFIG_FILE"
 	        fi
                 if [ ! -z $ER ]; then
                     echo "lcm_package_dir" >> "$CONFIG_FILE"
@@ -230,7 +208,7 @@ case "$SCRIPT_NAME" in
 		sed -i -e "s|lcm_phalanx_index_type|INT|g;" "$CONFIG_FILE"
 		sed -i -e "s|lcm_kokkos_device|OPENMP|g;" "$CONFIG_FILE"
 		sed -i -e "s|lcm_tpetra_inst_pthread|OFF|g;" "$CONFIG_FILE"
-		sed -i -e "s|lcm_enable_hwloc|ON|g;" "$CONFIG_FILE"
+		sed -i -e "s|lcm_enable_hwloc|OFF|g;" "$CONFIG_FILE"
 		sed -i -e "s|lcm_enable_kokkos_devel|ON|g;" "$CONFIG_FILE"
 		sed -i -e "s|lcm_enable_slfad|ON|g;" "$CONFIG_FILE"
 		sed -i -e "s|lcm_slfad_size||g;" "$CONFIG_FILE"
@@ -260,7 +238,7 @@ case "$SCRIPT_NAME" in
 		sed -i -e "s|lcm_phalanx_index_type|UINT|g;" "$CONFIG_FILE"
 		sed -i -e "s|lcm_kokkos_device|CUDA|g;" "$CONFIG_FILE"
 		sed -i -e "s|lcm_tpetra_inst_pthread|OFF|g;" "$CONFIG_FILE"
-		sed -i -e "s|lcm_enable_hwloc|ON|g;" "$CONFIG_FILE"
+		sed -i -e "s|lcm_enable_hwloc|OFF|g;" "$CONFIG_FILE"
 		sed -i -e "s|lcm_enable_kokkos_devel|ON|g;" "$CONFIG_FILE"
 		sed -i -e "s|lcm_enable_slfad|ON|g;" "$CONFIG_FILE"
 		sed -i -e "s|lcm_slfad_size|-D SLFAD_SIZE=48|g;" "$CONFIG_FILE"
@@ -281,7 +259,7 @@ case "$SCRIPT_NAME" in
 	    exit 1
 	fi
 	cd "$BUILD_DIR"
-	echo "REBUILDING $PACKAGE_STRING ..."
+	echo "BUILDING $PACKAGE_STRING ..."
 	echo "$LINE"
 	cd "$BUILD_DIR"
 	echo "WARNINGS AND ERRORS REDIRECTED TO $ERROR_LOG"
@@ -304,7 +282,7 @@ case "$SCRIPT_NAME" in
 			echo "*** MAKE INSTALL COMMAND FAILED ***"
 			exit 1
 		    fi
-                    NETCDF_SYSLIB=/usr/lib64/openmpi/lib/libnetcdf.so
+                    NETCDF_SYSLIB=$NETCDF_LIB/libnetcdf.so
                     NETCDF_LCMLIB="$INSTALL_DIR/lib/libnetcdf.so"
                     ln -sf "$INSTALL_DIR/include" "$INSTALL_DIR/inc"
                     ln -sf "$NETCDF_SYSLIB" "$NETCDF_LCMLIB"
@@ -338,10 +316,14 @@ case "$SCRIPT_NAME" in
 		    echo "to create."
 		    exit 1
 		fi
+	        cp -p "$PROJECT_XML_FILE" "$BUILD_DIR"
+	        cp -p "$CTEST_FILE" "$BUILD_DIR"
 		cd "$BUILD_DIR"
+                sed -i -e "s|lcm_subproject|$SUBPROJECT|g;" "$PROJECT_XML_FILE"
 		echo "TESTING $PACKAGE_STRING ..."
 		echo "$LINE"
-		ctest --timeout 600 . | tee "$TEST_LOG"
+                CTF="$BUILD_DIR/$CTEST_FILE"
+		eval "env BIN_DIR=$BUILD_DIR SRC_DIR=$PACKAGE_DIR LBL=$SUBPROJECT XML=$PROJECT_XML_FILE HST=`hostname` BLD=$BUILD ctest -VV --timeout 90 -S $CTF" . | tee "$TEST_LOG"
 		;;
 	    *)
 		echo "Unrecognized package option in test: $PACKAGE"

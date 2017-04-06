@@ -75,6 +75,7 @@ namespace Albany {
       const Teuchos::RCP<Teuchos::ParameterList>& responseList);
 
     void constructDirichletEvaluators(const Albany::MeshSpecsStruct& meshSpecs);
+    // void constructNeumannEvaluators(const Teuchos::RCP<Albany::MeshSpecsStruct>& meshSpecs);
 
   protected:
 
@@ -373,7 +374,7 @@ Albany::PeridigmProblem::constructEvaluators(
      *out << "PeridigmProblem::constructEvaluators(), Creating evaluators for peridynamic partial stress." << std::endl;
 
      RCP<shards::CellTopology> cellType = rcp(new shards::CellTopology (&meshSpecs.ctd));
-     RCP<Intrepid2::Basis<PHX::Device, RealType, RealType> > intrepidBasis = Albany::getIntrepid2Basis(meshSpecs.ctd);
+     RCP<Intrepid2::Basis<PHX::Device, RealType, RealType>> intrepidBasis = Albany::getIntrepid2Basis(meshSpecs.ctd);
 
      const int numNodes = intrepidBasis->getCardinality();
      const int worksetSize = meshSpecs.worksetSize;
@@ -543,13 +544,14 @@ Albany::PeridigmProblem::constructEvaluators(
        p->set< RCP<DataLayout>>("QP Tensor Data Layout", dataLayout->qp_tensor);
        p->set<std::string>("Weighted Gradient BF Name", "wGrad BF");
        p->set< RCP<DataLayout>>("Node QP Vector Data Layout", dataLayout->node_qp_vector);
+       p->set<std::string>("Weighted BF Name", "wBF");
+       p->set< RCP<DataLayout>>("Node QP Scalar Data Layout", dataLayout->node_qp_scalar);
        p->set<bool>("Disable Transient", true);
        if(supportsTransient){
 	 p->set<bool>("Disable Transient", false);
 	 p->set<std::string>("Density Name", "Density");
 	 p->set< RCP<DataLayout>>("Cell Scalar Data Layout", dataLayout->cell_scalar2);
-	 p->set<std::string>("Weighted BF Name", "wBF");
-	 p->set< RCP<DataLayout>>("Node QP Scalar Data Layout", dataLayout->node_qp_scalar);
+	 p->set< RCP<DataLayout>>("Node QP Vector Data Layout", dataLayout->node_qp_vector);
 	 p->set<std::string>("Time Dependent Variable Name", "Acceleration");
 	 p->set<std::string>("xdot Field Name", dof_name_dot[0]);
 	 p->set<std::string>("xdotdot Field Name", dof_name_dotdot[0]);
@@ -581,7 +583,7 @@ Albany::PeridigmProblem::constructEvaluators(
    else if(materialModelName == "Classic Vector Poisson"){
       *out << "PeridigmProblem::constructEvaluators(), Creating evaluators for classical Poisson Eq, material model = " << materialModelName << std::endl;
       RCP<shards::CellTopology> cellType = rcp(new shards::CellTopology (&meshSpecs.ctd));
-      RCP<Intrepid2::Basis<PHX::Device, RealType, RealType> > intrepidBasis = Albany::getIntrepid2Basis(meshSpecs.ctd);
+      RCP<Intrepid2::Basis<PHX::Device, RealType, RealType>> intrepidBasis = Albany::getIntrepid2Basis(meshSpecs.ctd);
 
       const int numNodes = intrepidBasis->getCardinality();
       const int worksetSize = meshSpecs.worksetSize;
@@ -720,7 +722,7 @@ Albany::PeridigmProblem::constructEvaluators(
      *out << "PeridigmProblem::constructEvaluators(), Creating evaluators for classical elasticity, material model = " << materialModelName << std::endl;
 
      RCP<shards::CellTopology> cellType = rcp(new shards::CellTopology (&meshSpecs.ctd));
-     RCP<Intrepid2::Basis<PHX::Device, RealType, RealType> > intrepidBasis = Albany::getIntrepid2Basis(meshSpecs.ctd);
+     RCP<Intrepid2::Basis<PHX::Device, RealType, RealType>> intrepidBasis = Albany::getIntrepid2Basis(meshSpecs.ctd);
 
      const int numNodes = intrepidBasis->getCardinality();
      const int worksetSize = meshSpecs.worksetSize;
@@ -935,13 +937,13 @@ Albany::PeridigmProblem::constructEvaluators(
        p->set< RCP<DataLayout>>("QP Tensor Data Layout", dataLayout->qp_tensor);
        p->set<std::string>("Weighted Gradient BF Name", "wGrad BF");
        p->set< RCP<DataLayout>>("Node QP Vector Data Layout", dataLayout->node_qp_vector);
+       p->set<std::string>("Weighted BF Name", "wBF");
+       p->set< RCP<DataLayout>>("Node QP Scalar Data Layout", dataLayout->node_qp_scalar);
        p->set<bool>("Disable Transient", true);
        if(supportsTransient){
 	 p->set<bool>("Disable Transient", false);
 	 p->set<std::string>("Density Name", "Density");
 	 p->set< RCP<DataLayout>>("Cell Scalar Data Layout", dataLayout->cell_scalar2);
-	 p->set<std::string>("Weighted BF Name", "wBF");
-	 p->set< RCP<DataLayout>>("Node QP Scalar Data Layout", dataLayout->node_qp_scalar);
 	 p->set<std::string>("Time Dependent Variable Name", "Acceleration");
 	 p->set<std::string>("xdot Field Name", dof_name_dot[0]);
 	 p->set<std::string>("xdotdot Field Name", dof_name_dotdot[0]);
